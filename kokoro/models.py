@@ -1,13 +1,11 @@
 # https://github.com/yl4579/StyleTTS2/blob/main/models.py
-from istftnet import AdaIN1d, Decoder
+from kokoro.istftnet import AdaIN1d, Decoder
 from munch import Munch
 from pathlib import Path
-from plbert import load_plbert
-from torch.nn.utils import weight_norm, spectral_norm
+from kokoro.plbert import load_plbert
+from torch.nn.utils import weight_norm
 import json
 import numpy as np
-import os
-import os.path as osp
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -335,7 +333,7 @@ def recursive_munch(d):
         return d
 
 def build_model(path, device):
-    config = Path(__file__).parent / 'config.json'
+    config = Path(path).parent / 'config.json'
     assert config.exists(), f'Config path incorrect: config.json not found at {config}'
     with open(config, 'r') as r:
         args = recursive_munch(json.load(r))
