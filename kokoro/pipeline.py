@@ -46,59 +46,58 @@ class KPipeline:
         assert os.path.exists(voice_path)
         self.voices[voice] = torch.load(voice_path, weights_only=True)
 
+    @classmethod
+    def waterfall_last(cls, pairs, next_count, waterfall=['!.?…', ':;', ',—'], bumps={')', '”'}):
+        for w in waterfall:
+            z = next((i for i, (_, ps) in reversed(list(enumerate(pairs))) if ps.strip() in set(w)), None)
+            if z is not None:
+                z += 1
+                if z < len(pairs) and pairs[z][1].strip() in bumps:
+                    z += 1
+                _, ps = zip(*pairs[:z])
+                if next_count - len(''.join(ps)) <= 510:
+                    return z
+        return len(pairs)
+
     def tokenize(self, tokens):
-        text = ''
-        ps = ''
+        pairs = []
+        count = 0
         for w in tokens:
             for t in (w if isinstance(w, list) else [w]):
-                text += t.text + t.whitespace
                 if t.phonemes is None:
                     continue
-                if t.prespace and ps and not ps[-1].isspace() and t.phonemes:
-                    ps += ' '
-                ps += t.phonemes + t.whitespace
-        text = text.strip()
-        ps = ps.strip()
-        ps = ps.replace('ɾ', 'T') # Just for American English
-        input_ids = list(filter(lambda x: x is not None, map(lambda c: self.vocab.get(c), ps)))
-        # assert len(ps) == len(input_ids), (ps, input_ids)
-        return text, input_ids
-
-    @classmethod
-    def find_best_split(cls, tokens, punctuation=';:,.!?—…"()“”'):
-        middle = len(tokens) // 2
-        for targets in ['!.?…', ':;', ',—']:
-            best = min(
-                (i for i, t in enumerate(tokens[:-1]) if not isinstance(t, list) and t.phonemes in set(targets) and (
-                    isinstance(tokens[i+1], list) or tokens[i+1].phonemes not in punctuation
-                )),
-                key=lambda i: abs(i - middle), default=None
-            )
-            if best is not None:
-                break
-        return middle if best is None else (best+1)
-
-    def recursive_split(self, tokens):
-        if not tokens:
-            return []
-        text, input_ids = self.tokenize(tokens)
-        if len(input_ids) < 511:
-            return [(text, input_ids)] if input_ids else []
-        best = type(self).find_best_split(tokens)
-        if best in (0, len(tokens)):
-            print('TODO: Giving up, not splitting this', len(tokens))
-            return []
-        return [*self.recursive_split(tokens[:best]), *self.recursive_split(tokens[best:])]
+                next_ps = ' ' if t.prespace and pairs and not pairs[-1][1].endswith(' ') and t.phonemes else ''
+                next_ps += ''.join(filter(lambda p: p in self.vocab, t.phonemes.replace('ɾ', 'T'))) # American English: ɾ => T
+                next_ps += ' ' if t.whitespace else ''
+                next_count = count + len(next_ps.rstrip())
+                if next_count > 510:
+                    z = type(self).waterfall_last(pairs, next_count)
+                    text, ps = zip(*pairs[:z])
+                    ps = ''.join(ps)
+                    yield ''.join(text).strip(), ps.strip()
+                    pairs = pairs[z:]
+                    count -= len(ps)
+                    if not pairs:
+                        next_ps = next_ps.lstrip()
+                pairs.append((t.text + t.whitespace, next_ps))
+                count += len(next_ps)
+        if pairs:
+            text, ps = zip(*pairs)
+            yield ''.join(text).strip(), ''.join(ps).strip()
 
     def __call__(self, text, voice='af', speed=1, split_pattern=r'\n+'):
         assert isinstance(text, str) or isinstance(text, list), type(text)
         self.load_voice(voice)
         if isinstance(text, str) and split_pattern:
             text = re.split(split_pattern, text.strip())
-        for t in text:
-            _, tokens = self.g2p(t)
-            for segment_text, input_ids in self.recursive_split(tokens):
-                if not input_ids:
+        for graphemes in text:
+            _, tokens = self.g2p(graphemes)
+            for gs, ps in self.tokenize(tokens):
+                if not ps:
                     continue
-                assert len(input_ids) < 511, input_ids
-                yield segment_text, self.model(input_ids, self.voices[voice][len(input_ids)-1], speed)
+                elif len(ps) > 510:
+                    print('TODO: Unexpected len(ps) > 510', len(ps), ps)
+                    continue
+                input_ids = list(filter(lambda i: i is not None, map(lambda p: self.vocab.get(p), ps)))
+                assert input_ids and len(input_ids) <= 510, input_ids
+                yield gs, ps, self.model(input_ids, self.voices[voice][len(input_ids)-1], speed)
