@@ -6,6 +6,38 @@ It is under construction and likely will not be useful until the [next base mode
 
 The goal is to be able to `pip install kokoro` and offer some of the design goals and functionalities laid out below.
 
+### Python usage
+
+First things first: install the package.
+
+```bash
+$ pip install kokoro
+```
+
+Then, generate some speech.
+
+```python
+from kokoro import KPipeline
+import soundfile as sf
+import numpy as np
+
+# 'a' for American English
+pipeline = KPipeline(lang_code='a')
+
+text = """There once was a codebase so light,
+That made voices sound crystal bright.
+Open source and free,
+It spoke with such glee,
+Making silicon sing in delight!"""
+
+# Generate and combine all audio segments
+audio_segments = [audio for _, _, audio in pipeline(text, voice='af_bella')]
+full_audio = np.concatenate(audio_segments)
+
+# Save as 24kHz WAV file
+sf.write('output.wav', full_audio, 24000)
+```
+
 ### G2P will be imported from Misaki
 [Misaki](https://github.com/hexgrad/misaki) is a G2P engine with language-specific solutions:
 ```sh
