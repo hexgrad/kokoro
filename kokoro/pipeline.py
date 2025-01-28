@@ -22,7 +22,7 @@ class KPipeline:
         with open(config_path, 'r') as r:
             config = json.load(r)
         if model_path is None:
-            model_path = hf_hub_download(repo_id=REPO_ID, filename='model.pth')
+            model_path = hf_hub_download(repo_id=REPO_ID, filename='kokoro-v1_0.pth')
         assert os.path.exists(model_path)
         try:
             fallback = espeak.EspeakFallback(british=lang_code=='b')
