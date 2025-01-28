@@ -93,7 +93,7 @@ class KPipeline:
     def __call__(self, text, voice='af', speed=1, split_pattern=r'\n+'):
         assert isinstance(text, str) or isinstance(text, list), type(text)
         self.load_voice(voice)
-        if isinstance(text, str) and split:
+        if isinstance(text, str) and split_pattern:
             text = re.split(split_pattern, text.strip())
         for t in text:
             _, tokens = self.g2p(t)
