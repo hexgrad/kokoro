@@ -239,4 +239,3 @@ class KModel(nn.Module):
         t_en = self.text_encoder(input_ids, input_lengths, text_mask)
         asr = t_en @ pred_aln_trg.unsqueeze(0).to(device)
         return self.decoder(asr, F0_pred, N_pred, ref_s[:, :128]).squeeze().cpu().numpy()
-
