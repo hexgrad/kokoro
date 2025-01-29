@@ -25,6 +25,7 @@ class KModel(torch.nn.Module):
     _REPO_ID = 'hexgrad/Kokoro-82M'
 
     @property
+    @classmethod
     def REPO_ID(cls):
         return cls._REPO_ID
 
