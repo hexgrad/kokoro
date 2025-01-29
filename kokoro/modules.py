@@ -1,7 +1,7 @@
 # https://github.com/yl4579/StyleTTS2/blob/main/models.py
-from .istftnet import AdaIN1d, AdainResBlk1d, Decoder
+from .istftnet import AdainResBlk1d
 from torch.nn.utils import weight_norm
-from transformers import AlbertConfig, AlbertModel
+from transformers import AlbertModel
 import numpy as np
 import torch
 import torch.nn as nn
@@ -182,60 +182,3 @@ class CustomAlbert(AlbertModel):
     def forward(self, *args, **kwargs):
         outputs = super().forward(*args, **kwargs)
         return outputs.last_hidden_state
-
-
-class KModel(nn.Module):
-    def __init__(self, config, path):
-        super().__init__()
-        self.bert = CustomAlbert(AlbertConfig(vocab_size=config['n_token'], **config['plbert']))
-        self.bert_encoder = nn.Linear(self.bert.config.hidden_size, config['hidden_dim'])
-        self.predictor = ProsodyPredictor(
-            style_dim=config['style_dim'], d_hid=config['hidden_dim'],
-            nlayers=config['n_layer'], max_dur=config['max_dur'], dropout=config['dropout']
-        )
-        self.text_encoder = TextEncoder(
-            channels=config['hidden_dim'], kernel_size=config['text_encoder_kernel_size'],
-            depth=config['n_layer'], n_symbols=config['n_token']
-        )
-        self.decoder = Decoder(
-            dim_in=config['hidden_dim'], style_dim=config['style_dim'],
-            dim_out=config['n_mels'], **config['istftnet']
-        )
-        for key, state_dict in torch.load(path, map_location='cpu', weights_only=True).items():
-            assert hasattr(self, key), key
-            try:
-                getattr(self, key).load_state_dict(state_dict)
-            except:
-                state_dict = {k[7:]: v for k, v in state_dict.items()}
-                getattr(self, key).load_state_dict(state_dict, strict=False)
-
-    @classmethod
-    def length_to_mask(cls, lengths):
-        mask = torch.arange(lengths.max()).unsqueeze(0).expand(lengths.shape[0], -1).type_as(lengths)
-        mask = torch.gt(mask+1, lengths.unsqueeze(1))
-        return mask
-
-    @torch.no_grad()
-    def forward(self, input_ids, ref_s, speed):
-        device = ref_s.device
-        input_ids = torch.LongTensor([[0, *input_ids, 0]]).to(device)
-        input_lengths = torch.LongTensor([input_ids.shape[-1]]).to(device)
-        text_mask = type(self).length_to_mask(input_lengths).to(device)
-        bert_dur = self.bert(input_ids, attention_mask=(~text_mask).int())
-        d_en = self.bert_encoder(bert_dur).transpose(-1, -2)
-        s = ref_s[:, 128:]
-        d = self.predictor.text_encoder(d_en, s, input_lengths, text_mask)
-        x, _ = self.predictor.lstm(d)
-        duration = self.predictor.duration_proj(x)
-        duration = torch.sigmoid(duration).sum(axis=-1) / speed
-        pred_dur = torch.round(duration).clamp(min=1).long()
-        pred_aln_trg = torch.zeros(input_lengths, pred_dur.sum().item())
-        c_frame = 0
-        for i in range(pred_aln_trg.size(0)):
-            pred_aln_trg[i, c_frame:c_frame + pred_dur[0,i].item()] = 1
-            c_frame += pred_dur[0,i].item()
-        en = d.transpose(-1, -2) @ pred_aln_trg.unsqueeze(0).to(device)
-        F0_pred, N_pred = self.predictor.F0Ntrain(en, s)
-        t_en = self.text_encoder(input_ids, input_lengths, text_mask)
-        asr = t_en @ pred_aln_trg.unsqueeze(0).to(device)
-        return self.decoder(asr, F0_pred, N_pred, ref_s[:, :128]).squeeze().cpu().numpy()
