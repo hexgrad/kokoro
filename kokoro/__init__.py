@@ -1,4 +1,4 @@
-__version__ = '0.2.4'
+__version__ = '0.2.5'
 
-from .models import KModel
+from .model import KModel
 from .pipeline import KPipeline
