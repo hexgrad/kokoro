@@ -7,13 +7,22 @@ import re
 import torch
 
 LANG_CODES = dict(
+    # pip install misaki[en]
     a='American English',
     b='British English',
+
+    # espeak-ng
     e='es',
     f='fr-fr',
     h='hi',
     i='it',
     p='pt-br',
+
+    # pip install misaki[ja]
+    j='Japanese',
+
+    # pip install misaki[zh]
+    z='Mandarin Chinese',
 )
 
 class KPipeline:
@@ -55,6 +64,20 @@ class KPipeline:
                 print('⚠️ WARNING: EspeakFallback not enabled. OOD words will be skipped.', e)
                 fallback = None
             self.g2p = en.G2P(trf=trf, british=lang_code=='b', fallback=fallback)
+        elif lang_code == 'j':
+            try:
+                from misaki import ja
+                self.g2p = ja.JAG2P()
+            except ImportError:
+                print("❌ ERROR: You need to `pip install misaki[ja]` to use lang_code='j'")
+                raise
+        elif lang_code == 'z':
+            try:
+                from misaki import zh
+                self.g2p = zh.ZHG2P()
+            except ImportError:
+                print("❌ ERROR: You need to `pip install misaki[zh]` to use lang_code='z'")
+                raise
         else:
             language = LANG_CODES[lang_code]
             print(f"⚠️ WARNING: Using EspeakG2P(language='{language}'). Chunking logic not yet implemented, so long texts may be truncated unless you split them with '\\n'.")
@@ -147,6 +170,7 @@ class KPipeline:
         if isinstance(text, str):
             text = re.split(split_pattern, text.strip()) if split_pattern else [text]
         for graphemes in text:
+            # TODO(misaki): Unify G2P interface between English and non-English
             if self.lang_code in 'ab':
                 _, tokens = self.g2p(graphemes)
                 for gs, ps in self.en_tokenize(tokens):
