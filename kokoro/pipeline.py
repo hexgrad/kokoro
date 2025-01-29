@@ -109,7 +109,7 @@ class KPipeline:
                 next_ps += ' ' if t.whitespace else ''
                 next_count = count + len(next_ps.rstrip())
                 if next_count > 510:
-                    z = type(self).waterfall_last(pairs, next_count)
+                    z = KPipeline.waterfall_last(pairs, next_count)
                     text, ps = zip(*pairs[:z])
                     ps = ''.join(ps)
                     yield ''.join(text).strip(), ps.strip()
@@ -155,7 +155,7 @@ class KPipeline:
                     elif len(ps) > 510:
                         print(f"⚠️ WARNING: Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
                         ps = ps[:510]
-                    yield gs, ps, type(self).infer(model, ps, pack, speed)
+                    yield gs, ps, KPipeline.infer(model, ps, pack, speed)
             else:
                 ps = self.g2p(graphemes)
                 if not ps:
@@ -163,4 +163,4 @@ class KPipeline:
                 elif len(ps) > 510:
                     print(f'⚠️ WARNING: Truncating len(ps) == {len(ps)} > 510')
                     ps = ps[:510]
-                yield graphemes, ps, type(self).infer(model, ps, pack, speed)
+                yield graphemes, ps, KPipeline.infer(model, ps, pack, speed)
