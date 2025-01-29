@@ -24,7 +24,7 @@ class KPipeline:
         if config_path is None:
             config_path = hf_hub_download(repo_id=REPO_ID, filename='config.json')
         assert os.path.exists(config_path)
-        with open(config_path, 'r') as r:
+        with open(config_path, 'r', encoding='utf8') as r:
             config = json.load(r)
         if model_path is None:
             model_path = hf_hub_download(repo_id=REPO_ID, filename='kokoro-v1_0.pth')
