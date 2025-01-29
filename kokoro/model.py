@@ -22,12 +22,7 @@ class KModel(torch.nn.Module):
     so there is no need to repeatedly download config.json outside of KModel.
     '''
 
-    _REPO_ID = 'hexgrad/Kokoro-82M'
-
-    @property
-    @classmethod
-    def REPO_ID(cls):
-        return cls._REPO_ID
+    REPO_ID = 'hexgrad/Kokoro-82M'
 
     def __init__(self, config: Union[Dict, str, None] = None, model: Optional[str] = None):
         super().__init__()
