@@ -10,6 +10,11 @@ import torch
 LANG_CODES = dict(
     a='American English',
     b='British English',
+    e='es',
+    f='fr-fr',
+    h='hi',
+    i='it',
+    p='pt-br',
 )
 REPO_ID = 'hexgrad/Kokoro-82M'
 
@@ -38,20 +43,25 @@ class KPipeline:
         assert os.path.exists(model_path), f"Model file not found at {model_path}"
         print(f"Model file found at {model_path}")
         
-        # Initialize G2P
-        try:
-            fallback = espeak.EspeakFallback(british=lang_code=='b')
-        except Exception as e:
-            print('WARNING: EspeakFallback not enabled. Out-of-dictionary words will be skipped.', e)
-            fallback = None
-            
         # Setup model and device
         self.device = ('cuda' if torch.cuda.is_available() else 'cpu') if device is None else device
         self.model = KModel(config, model_path).to(self.device).eval()
         self.voices = {}
         
+        # Initialize G2P based on language
+        if lang_code in 'ab':
+            try:
+                fallback = espeak.EspeakFallback(british=lang_code=='b')
+            except Exception as e:
+                print('WARNING: EspeakFallback not enabled. Out-of-dictionary words will be skipped.', e)
+                fallback = None
+            g2p = en.G2P(trf=trf, british=lang_code=='b', fallback=fallback)
+        else:
+            language = LANG_CODES[lang_code]
+            print(f"WARNING: Using EspeakG2P(language='{language}'). Chunking logic not yet implemented, so long texts may be truncated unless you split them with '\\n'.")
+            g2p = espeak.EspeakG2P(language=language)
+            
         # Initialize inference pipeline
-        g2p = en.G2P(trf=trf, british=lang_code=='b', fallback=fallback)
         self.inference = KInference(vocab=config['vocab'], phonemizer=g2p)
 
     def load_voice(self, voice):

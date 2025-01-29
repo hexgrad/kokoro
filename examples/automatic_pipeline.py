@@ -9,6 +9,8 @@ def main():
     print("Creating KPipeline...")
     pipeline = KPipeline(lang_code='a')  # 'a' for American English
     print("Pipeline created successfully")
+
+    text = "Hello! This is a test of the decoupled inference pipeline."
     
     for graphemes, phonemes, audio in pipeline(text, voice='af_alloy'):
         print(f"\nChunk: {graphemes}")
