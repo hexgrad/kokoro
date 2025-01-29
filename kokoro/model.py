@@ -29,7 +29,7 @@ class KModel(torch.nn.Module):
         if not isinstance(config, dict):
             if not config:
                 config = hf_hub_download(repo_id=KModel.REPO_ID, filename='config.json')
-            with open(config, 'r') as r:
+            with open(config, 'r', encoding='utf-8') as r:
                 config = json.load(r)
         self.vocab = config['vocab']
         self.bert = CustomAlbert(AlbertConfig(vocab_size=config['n_token'], **config['plbert']))
