@@ -1,4 +1,2 @@
-__version__ = '0.2.1'
-
-from .models import KModel
+from .inference import KInference
 from .pipeline import KPipeline

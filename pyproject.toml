@@ -1,3 +1,33 @@
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "kokoro"
+version = "0.2.1"
+description = "TTS"
+authors = [
+    {name = "hexgrad", email = "hello@hexgrad.com"},
+]
+readme = "README.md"
+requires-python = ">=3.6"
+license = {text = "Apache 2.0"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "huggingface_hub",
+    "misaki[en]>=0.6.1",
+    "numpy",
+    "scipy",
+    "torch",
+    "transformers",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-cov",
+]

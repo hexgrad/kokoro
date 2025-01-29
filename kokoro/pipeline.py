@@ -1,4 +1,5 @@
 from .models import KModel
+from .inference import KInference
 from huggingface_hub import hf_hub_download
 from misaki import en, espeak
 import json
@@ -14,91 +15,62 @@ REPO_ID = 'hexgrad/Kokoro-82M'
 
 class KPipeline:
     def __init__(self, lang_code='a', config_path=None, model_path=None, trf=False, device=None):
+        """Initialize the pipeline with automatic model loading and configuration.
+        For more control over model loading and inference, see the KInference class.
+        """
         assert lang_code in LANG_CODES, (lang_code, LANG_CODES)
         self.lang_code = lang_code
+        
+        # Download and load config
         if config_path is None:
+            print("Downloading config from HuggingFace hub...")
             config_path = hf_hub_download(repo_id=REPO_ID, filename='config.json')
-        assert os.path.exists(config_path)
-        with open(config_path, 'r') as r:
+        assert os.path.exists(config_path), f"Config file not found at {config_path}"
+        print(f"Loading config from {config_path}")
+        with open(config_path, 'r', encoding='utf-8') as r:
             config = json.load(r)
+        print("Config loaded successfully")
+        
+        # Download and load model
         if model_path is None:
+            print("Downloading model from HuggingFace hub...")
             model_path = hf_hub_download(repo_id=REPO_ID, filename='kokoro-v1_0.pth')
-        assert os.path.exists(model_path)
+        assert os.path.exists(model_path), f"Model file not found at {model_path}"
+        print(f"Model file found at {model_path}")
+        
+        # Initialize G2P
         try:
             fallback = espeak.EspeakFallback(british=lang_code=='b')
         except Exception as e:
             print('WARNING: EspeakFallback not enabled. Out-of-dictionary words will be skipped.', e)
             fallback = None
-        self.g2p = en.G2P(trf=trf, british=lang_code=='b', fallback=fallback)
-        self.vocab = config['vocab']
+            
+        # Setup model and device
         self.device = ('cuda' if torch.cuda.is_available() else 'cpu') if device is None else device
         self.model = KModel(config, model_path).to(self.device).eval()
         self.voices = {}
+        
+        # Initialize inference pipeline
+        g2p = en.G2P(trf=trf, british=lang_code=='b', fallback=fallback)
+        self.inference = KInference(vocab=config['vocab'], phonemizer=g2p)
 
     def load_voice(self, voice):
+        """Load a voice model, downloading it if needed."""
         if voice in self.voices:
             return
+            
         v = voice.split('/')[-1]
         if not v.startswith(self.lang_code):
             v = LANG_CODES.get(v, voice)
             p = LANG_CODES.get(self.lang_code, self.lang_code)
             print(f'WARNING: Loading {v} voice into {p} pipeline. Phonemes may be mismatched.')
+            
         voice_path = voice if voice.endswith('.pt') else hf_hub_download(repo_id=REPO_ID, filename=f'voices/{voice}.pt')
         assert os.path.exists(voice_path)
         self.voices[voice] = torch.load(voice_path, weights_only=True).to(self.device)
 
-    @classmethod
-    def waterfall_last(cls, pairs, next_count, waterfall=['!.?…', ':;', ',—'], bumps={')', '”'}):
-        for w in waterfall:
-            z = next((i for i, (_, ps) in reversed(list(enumerate(pairs))) if ps.strip() in set(w)), None)
-            if z is not None:
-                z += 1
-                if z < len(pairs) and pairs[z][1].strip() in bumps:
-                    z += 1
-                _, ps = zip(*pairs[:z])
-                if next_count - len(''.join(ps)) <= 510:
-                    return z
-        return len(pairs)
-
-    def tokenize(self, tokens):
-        pairs = []
-        count = 0
-        for w in tokens:
-            for t in (w if isinstance(w, list) else [w]):
-                if t.phonemes is None:
-                    continue
-                next_ps = ' ' if t.prespace and pairs and not pairs[-1][1].endswith(' ') and t.phonemes else ''
-                next_ps += ''.join(filter(lambda p: p in self.vocab, t.phonemes.replace('ɾ', 'T'))) # American English: ɾ => T
-                next_ps += ' ' if t.whitespace else ''
-                next_count = count + len(next_ps.rstrip())
-                if next_count > 510:
-                    z = type(self).waterfall_last(pairs, next_count)
-                    text, ps = zip(*pairs[:z])
-                    ps = ''.join(ps)
-                    yield ''.join(text).strip(), ps.strip()
-                    pairs = pairs[z:]
-                    count -= len(ps)
-                    if not pairs:
-                        next_ps = next_ps.lstrip()
-                pairs.append((t.text + t.whitespace, next_ps))
-                count += len(next_ps)
-        if pairs:
-            text, ps = zip(*pairs)
-            yield ''.join(text).strip(), ''.join(ps).strip()
-
     def __call__(self, text, voice='af', speed=1, split_pattern=r'\n+'):
+        """Run the full pipeline with automatic voice loading."""
         assert isinstance(text, str) or isinstance(text, list), type(text)
         self.load_voice(voice)
-        if isinstance(text, str) and split_pattern:
-            text = re.split(split_pattern, text.strip())
-        for graphemes in text:
-            _, tokens = self.g2p(graphemes)
-            for gs, ps in self.tokenize(tokens):
-                if not ps:
-                    continue
-                elif len(ps) > 510:
-                    print('TODO: Unexpected len(ps) > 510', len(ps), ps)
-                    continue
-                input_ids = list(filter(lambda i: i is not None, map(lambda p: self.vocab.get(p), ps)))
-                assert input_ids and len(input_ids) <= 510, input_ids
-                yield gs, ps, self.model(input_ids, self.voices[voice][len(input_ids)-1], speed)
+        return self.inference(self.model, text, self.voices[voice], speed, split_pattern)
