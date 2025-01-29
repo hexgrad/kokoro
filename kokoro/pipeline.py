@@ -18,7 +18,7 @@ LANG_CODES = dict(
 REPO_ID = 'hexgrad/Kokoro-82M'
 
 class KPipeline:
-    def __init__(self, lang_code='a', config_path=None, model_path=None, trf=False, device=None):
+    def __init__(self, lang_code='a', config_path=None, model_path=None, trf=False, device=None, model=None):
         assert lang_code in LANG_CODES, (lang_code, LANG_CODES)
         self.lang_code = lang_code
         if config_path is None:
@@ -31,7 +31,10 @@ class KPipeline:
         assert os.path.exists(model_path)
         self.vocab = config['vocab']
         self.device = ('cuda' if torch.cuda.is_available() else 'cpu') if device is None else device
-        self.model = KModel(config, model_path).to(self.device).eval()
+        if model is None:
+            self.model = KModel(config, model_path).to(self.device).eval()
+        else:
+            self.model = model
         self.voices = {}
         if lang_code in 'ab':
             try:
@@ -44,6 +47,9 @@ class KPipeline:
             language = LANG_CODES[lang_code]
             print(f"WARNING: Using EspeakG2P(language='{language}'). Chunking logic not yet implemented, so long texts may be truncated unless you split them with '\\n'.")
             self.g2p = espeak.EspeakG2P(language=language)
+
+    def get_model_instance(self):
+        return self.model
 
     def load_voice(self, voice):
         if voice in self.voices:
