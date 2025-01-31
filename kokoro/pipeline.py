@@ -86,7 +86,7 @@ class KPipeline:
             try:
                 fallback = espeak.EspeakFallback(british=lang_code=='b')
             except Exception as e:
-                print('⚠️ WARNING: EspeakFallback not enabled. OOD words will be skipped.', e)
+                print('WARNING: EspeakFallback not enabled. OOD words will be skipped.', e)
                 fallback = None
             self.g2p = en.G2P(trf=trf, british=lang_code=='b', fallback=fallback)
         elif lang_code == 'j':
@@ -94,18 +94,18 @@ class KPipeline:
                 from misaki import ja
                 self.g2p = ja.JAG2P()
             except ImportError:
-                print("❌ ERROR: You need to `pip install misaki[ja]` to use lang_code='j'")
+                print("ERROR: You need to `pip install misaki[ja]` to use lang_code='j'")
                 raise
         elif lang_code == 'z':
             try:
                 from misaki import zh
                 self.g2p = zh.ZHG2P()
             except ImportError:
-                print("❌ ERROR: You need to `pip install misaki[zh]` to use lang_code='z'")
+                print("ERROR: You need to `pip install misaki[zh]` to use lang_code='z'")
                 raise
         else:
             language = LANG_CODES[lang_code]
-            print(f"⚠️ WARNING: Using EspeakG2P(language='{language}'). Chunking logic not yet implemented, so long texts may be truncated unless you split them with '\\n'.")
+            print(f"WARNING: Using EspeakG2P(language='{language}'). Chunking logic not yet implemented, so long texts may be truncated unless you split them with '\\n'.")
             self.g2p = espeak.EspeakG2P(language=language)
 
     def load_single_voice(self, voice: str):
@@ -118,7 +118,7 @@ class KPipeline:
             if not voice.startswith(self.lang_code):
                 v = LANG_CODES.get(voice, voice)
                 p = LANG_CODES.get(self.lang_code, self.lang_code)
-                print(f'⚠️ WARNING: Language mismatch, loading {v} voice into {p} pipeline.')
+                print(f'WARNING: Language mismatch, loading {v} voice into {p} pipeline.')
         pack = torch.load(f, weights_only=True)
         self.voices[voice] = pack
         return pack
@@ -217,7 +217,7 @@ class KPipeline:
                     if not ps:
                         continue
                     elif len(ps) > 510:
-                        print(f"⚠️ WARNING: Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
+                        print(f"WARNING: Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
                         ps = ps[:510]
                     yield gs, ps, KPipeline.infer(model, ps, pack, speed)
             else:
@@ -225,6 +225,6 @@ class KPipeline:
                 if not ps:
                     continue
                 elif len(ps) > 510:
-                    print(f'⚠️ WARNING: Truncating len(ps) == {len(ps)} > 510')
+                    print(f'WARNING: Truncating len(ps) == {len(ps)} > 510')
                     ps = ps[:510]
                 yield graphemes, ps, KPipeline.infer(model, ps, pack, speed)
