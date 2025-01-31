@@ -47,15 +47,40 @@ class KPipeline:
 
     A "loud" KPipeline _with_ a model yields (graphemes, phonemes, audio).
     '''
-    def __init__(self, lang_code: str, model: Union[KModel, bool] = True, trf: bool = False):
+    def __init__(
+        self,
+        lang_code: str,
+        model: Union[KModel, bool] = True,
+        trf: bool = False,
+        device: Optional[str] = None
+    ):
+        """Initialize a KPipeline.
+        
+        Args:
+            lang_code: Language code for G2P processing
+            model: KModel instance, True to create new model, False for no model
+            trf: Whether to use transformer-based G2P
+            device: Override default device selection ('cuda' or 'cpu', or None for auto)
+                   If None, will auto-select cuda if available
+                   If 'cuda' and not available, will explicitly raise an error
+        """
         assert lang_code in LANG_CODES, (lang_code, LANG_CODES)
         self.lang_code = lang_code
         self.model = None
         if isinstance(model, KModel):
             self.model = model
         elif model:
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
-            self.model = KModel().to(device).eval()
+            if device == 'cuda' and not torch.cuda.is_available():
+                raise RuntimeError("CUDA requested but not available")
+            if device is None:
+                device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            try:
+                self.model = KModel().to(device).eval()
+            except RuntimeError as e:
+                if device == 'cuda':
+                    raise RuntimeError(f"""Failed to initialize model on CUDA: {e}. 
+                                       Try setting device='cpu' or check CUDA installation.""")
+                raise
         self.voices = {}
         if lang_code in 'ab':
             try:
