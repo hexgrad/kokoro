@@ -145,8 +145,8 @@ class KPipeline:
         cls,
         pairs: List[Tuple[str, str]],
         next_count: int,
-        waterfall: List[str] = ['!.?...', ':;', ',—'],
-        bumps: List[str] = [')', '"']
+        waterfall: List[str] = ['!.?…', ':;', ',—'],
+        bumps: List[str] = [')', '”']
     ) -> int:
         for w in waterfall:
             z = next((i for i, (_, ps) in reversed(list(enumerate(pairs))) if ps.strip() in set(w)), None)
