@@ -3,6 +3,7 @@ from huggingface_hub import hf_hub_download
 from misaki import en, espeak
 from numbers import Number
 from typing import Generator, List, Optional, Tuple, Union
+from loguru import logger
 import re
 import torch
 
@@ -86,7 +87,8 @@ class KPipeline:
             try:
                 fallback = espeak.EspeakFallback(british=lang_code=='b')
             except Exception as e:
-                print('WARNING: EspeakFallback not enabled. OOD words will be skipped.', e)
+                logger.warning("EspeakFallback not Enabled: OOD words will be skipped")
+                logger.warning({str(e)})
                 fallback = None
             self.g2p = en.G2P(trf=trf, british=lang_code=='b', fallback=fallback)
         elif lang_code == 'j':
@@ -94,18 +96,18 @@ class KPipeline:
                 from misaki import ja
                 self.g2p = ja.JAG2P()
             except ImportError:
-                print("ERROR: You need to `pip install misaki[ja]` to use lang_code='j'")
+                logger.error("You need to `pip install misaki[ja]` to use lang_code='j'")
                 raise
         elif lang_code == 'z':
             try:
                 from misaki import zh
                 self.g2p = zh.ZHG2P()
             except ImportError:
-                print("ERROR: You need to `pip install misaki[zh]` to use lang_code='z'")
+                logger.error("You need to `pip install misaki[zh]` to use lang_code='z'")
                 raise
         else:
             language = LANG_CODES[lang_code]
-            print(f"WARNING: Using EspeakG2P(language='{language}'). Chunking logic not yet implemented, so long texts may be truncated unless you split them with '\\n'.")
+            logger.warning(f"Using EspeakG2P(language='{language}'). Chunking logic not yet implemented, so long texts may be truncated unless you split them with '\\n'.")
             self.g2p = espeak.EspeakG2P(language=language)
 
     def load_single_voice(self, voice: str):
@@ -118,7 +120,7 @@ class KPipeline:
             if not voice.startswith(self.lang_code):
                 v = LANG_CODES.get(voice, voice)
                 p = LANG_CODES.get(self.lang_code, self.lang_code)
-                print(f'WARNING: Language mismatch, loading {v} voice into {p} pipeline.')
+                logger.warning(f'Language mismatch, loading {v} voice into {p} pipeline.')
         pack = torch.load(f, weights_only=True)
         self.voices[voice] = pack
         return pack
@@ -143,8 +145,8 @@ class KPipeline:
         cls,
         pairs: List[Tuple[str, str]],
         next_count: int,
-        waterfall: List[str] = ['!.?…', ':;', ',—'],
-        bumps: List[str] = [')', '”']
+        waterfall: List[str] = ['!.?...', ':;', ',—'],
+        bumps: List[str] = [')', '"']
     ) -> int:
         for w in waterfall:
             z = next((i for i, (_, ps) in reversed(list(enumerate(pairs))) if ps.strip() in set(w)), None)
@@ -175,7 +177,10 @@ class KPipeline:
                     z = KPipeline.waterfall_last(pairs, next_count)
                     text, ps = zip(*pairs[:z])
                     ps = ''.join(ps)
-                    yield ''.join(text).strip(), ps.strip()
+                    text_chunk = ''.join(text).strip()
+                    ps_chunk = ps.strip()
+                    logger.debug(f"Chunking text at {z}: '{text_chunk[:30]}{'...' if len(text_chunk) > 30 else ''}'")
+                    yield text_chunk, ps_chunk
                     pairs = pairs[z:]
                     count -= len(ps)
                     if not pairs:
@@ -204,20 +209,23 @@ class KPipeline:
         split_pattern: Optional[str] = r'\n+',
         model: Optional[KModel] = None
     ) -> Generator[Tuple[str, str, Optional[torch.FloatTensor]], None, None]:
+        logger.debug(f"Loading voice: {voice}")
         pack = self.load_voice(voice)
         model = model or self.model
         pack = pack.to(model.device) if model else pack
+        logger.debug(f"Voice loaded on device: {pack.device if hasattr(pack, 'device') else 'N/A'}")
         if isinstance(text, str):
             text = re.split(split_pattern, text.strip()) if split_pattern else [text]
         for graphemes in text:
             # TODO(misaki): Unify G2P interface between English and non-English
             if self.lang_code in 'ab':
+                logger.debug(f"Processing English text: {graphemes[:50]}{'...' if len(graphemes) > 50 else ''}")
                 _, tokens = self.g2p(graphemes)
                 for gs, ps in self.en_tokenize(tokens):
                     if not ps:
                         continue
                     elif len(ps) > 510:
-                        print(f"WARNING: Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
+                        logger.warning(f"Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
                         ps = ps[:510]
                     yield gs, ps, KPipeline.infer(model, ps, pack, speed)
             else:
@@ -225,6 +233,6 @@ class KPipeline:
                 if not ps:
                     continue
                 elif len(ps) > 510:
-                    print(f'WARNING: Truncating len(ps) == {len(ps)} > 510')
+                    logger.warning(f'Truncating len(ps) == {len(ps)} > 510')
                     ps = ps[:510]
                 yield graphemes, ps, KPipeline.infer(model, ps, pack, speed)

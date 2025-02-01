@@ -4,6 +4,7 @@ from huggingface_hub import hf_hub_download
 from numbers import Number
 from transformers import AlbertConfig
 from typing import Dict, Optional, Union
+from loguru import logger
 import json
 import torch
 
@@ -28,9 +29,11 @@ class KModel(torch.nn.Module):
         super().__init__()
         if not isinstance(config, dict):
             if not config:
+                logger.debug("No config provided, downloading from HF")
                 config = hf_hub_download(repo_id=KModel.REPO_ID, filename='config.json')
             with open(config, 'r', encoding='utf-8') as r:
                 config = json.load(r)
+                logger.debug(f"Loaded config: {config}")
         self.vocab = config['vocab']
         self.bert = CustomAlbert(AlbertConfig(vocab_size=config['n_token'], **config['plbert']))
         self.bert_encoder = torch.nn.Linear(self.bert.config.hidden_size, config['hidden_dim'])
@@ -54,6 +57,7 @@ class KModel(torch.nn.Module):
             try:
                 getattr(self, key).load_state_dict(state_dict)
             except:
+                logger.debug(f"Did not load {key} from state_dict")
                 state_dict = {k[7:]: v for k, v in state_dict.items()}
                 getattr(self, key).load_state_dict(state_dict, strict=False)
 
@@ -64,6 +68,7 @@ class KModel(torch.nn.Module):
     @torch.no_grad()
     def forward(self, phonemes: str, ref_s: torch.FloatTensor, speed: Number = 1) -> torch.FloatTensor:
         input_ids = list(filter(lambda i: i is not None, map(lambda p: self.vocab.get(p), phonemes)))
+        logger.debug(f"phonemes: {phonemes} -> input_ids: {input_ids}")
         assert len(input_ids)+2 <= self.context_length, (len(input_ids)+2, self.context_length)
         input_ids = torch.LongTensor([[0, *input_ids, 0]]).to(self.device)
         input_lengths = torch.LongTensor([input_ids.shape[-1]]).to(self.device)
@@ -78,6 +83,7 @@ class KModel(torch.nn.Module):
         duration = self.predictor.duration_proj(x)
         duration = torch.sigmoid(duration).sum(axis=-1) / speed
         pred_dur = torch.round(duration).clamp(min=1).long()
+        logger.debug(f"pred_dur: {pred_dur}")
         pred_aln_trg = torch.zeros(input_lengths, pred_dur.sum().item())
         c_frame = 0
         for i in range(pred_aln_trg.size(0)):

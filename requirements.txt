@@ -3,3 +3,4 @@ phonemizer
 scipy
 torch
 transformers
+loguru

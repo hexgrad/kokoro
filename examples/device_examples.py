@@ -1,12 +1,9 @@
 """
 Quick example to show how device selection can be controlled, and was checked
 """
-# import warnings, time
 import time
-# import warnings
 from kokoro import KPipeline
-# warnings.filterwarnings('ignore')
-# import torch; torch.set_warn_always(False)
+from loguru import logger
 
 def generate_audio(pipeline, text):
     for _, _, audio in pipeline(text, voice='af_bella'):
@@ -20,9 +17,9 @@ def time_synthesis(device=None):
         pipeline = KPipeline(lang_code='a', device=device)
         samples = generate_audio(pipeline, "The quick brown fox jumps over the lazy dog.")
         ms = (time.perf_counter() - start) * 1000
-        print(f"✓ {device or 'auto':<6} | {ms:>5.1f}ms total | {samples:>6,d} samples")
+        logger.info(f"✓ {device or 'auto':<6} | {ms:>5.1f}ms total | {samples:>6,d} samples")
     except RuntimeError as e:
-        print(f"✗ {'cuda' if 'CUDA' in str(e) else device or 'auto':<6} | {'not available' if 'CUDA' in str(e) else str(e)}")
+        logger.error(f"✗ {'cuda' if 'CUDA' in str(e) else device or 'auto':<6} | {'not available' if 'CUDA' in str(e) else str(e)}")
 
 def compare_shared_model():
     try:
@@ -34,15 +31,15 @@ def compare_shared_model():
             generate_audio(pipeline, "Testing model reuse.")
                 
         ms = (time.perf_counter() - start) * 1000
-        print(f"✓ reuse  | {ms:>5.1f}ms for both models")
+        logger.info(f"✓ reuse  | {ms:>5.1f}ms for both models")
     except Exception as e:
-        print(f"✗ reuse  | {str(e)}")
+        logger.error(f"✗ reuse  | {str(e)}")
 
 if __name__ == '__main__':
-    print("\nDevice Selection & Performance:")
-    print("----------------------------------------")
+    logger.info("Device Selection & Performance")
+    logger.info("-" * 40)
     time_synthesis()
     time_synthesis('cuda')
     time_synthesis('cpu') 
-    print("----------------------------------------")
+    logger.info("-" * 40)
     compare_shared_model()
