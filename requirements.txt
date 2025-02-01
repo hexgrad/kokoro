@@ -1,6 +1,0 @@
-numpy
-phonemizer
-scipy
-torch
-transformers
-loguru
