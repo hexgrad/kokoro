@@ -2,12 +2,12 @@ from setuptools import setup, find_packages
 
 setup(
     name='kokoro',
-    version='0.3.3',
+    version='0.3.4',
     packages=find_packages(),
     install_requires=[
         'huggingface_hub',
         'loguru',
-        'misaki[en]>=0.6.1',
+        'misaki[en]>=0.6.5',
         'numpy==1.26.4',
         'scipy',
         'torch',
