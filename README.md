@@ -59,6 +59,22 @@ for i, (gs, ps, audio) in enumerate(generator):
 
 Under the hood, `kokoro` uses [`misaki`](https://pypi.org/project/misaki/), a G2P library at https://github.com/hexgrad/misaki
 
+### Conda Environment
+
+Use the following conda `environment.yml` if you're facing any dependency issues.
+```yaml
+name: kokoro
+channels:
+  - defaults
+dependencies:
+  - python==3.9       
+  - libstdcxx~=12.4.0 # Needed to load espeak correctly. Try removing this if you're facing issues with Espeak fallback. 
+  - pip:
+      - kokoro>=0.3.1
+      - soundfile
+      - misaki[en]
+```
+
 ### Acknowledgements
 
 - 🛠️ [@yl4579](https://huggingface.co/yl4579) for architecting StyleTTS 2.
