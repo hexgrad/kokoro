@@ -1,10 +1,11 @@
 from .istftnet import Decoder
 from .modules import CustomAlbert, ProsodyPredictor, TextEncoder
+from dataclasses import dataclass
 from huggingface_hub import hf_hub_download
+from loguru import logger
 from numbers import Number
 from transformers import AlbertConfig
 from typing import Dict, Optional, Union
-from loguru import logger
 import json
 import torch
 
@@ -65,8 +66,19 @@ class KModel(torch.nn.Module):
     def device(self):
         return self.bert.device
 
+    @dataclass
+    class Output:
+        audio: torch.FloatTensor
+        pred_dur: Optional[torch.LongTensor] = None
+
     @torch.no_grad()
-    def forward(self, phonemes: str, ref_s: torch.FloatTensor, speed: Number = 1) -> torch.FloatTensor:
+    def forward(
+        self,
+        phonemes: str,
+        ref_s: torch.FloatTensor,
+        speed: Number = 1,
+        return_output: Bool = False # MARK: BACKWARD COMPAT
+    ) -> Union[Output, torch.FloatTensor]:
         input_ids = list(filter(lambda i: i is not None, map(lambda p: self.vocab.get(p), phonemes)))
         logger.debug(f"phonemes: {phonemes} -> input_ids: {input_ids}")
         assert len(input_ids)+2 <= self.context_length, (len(input_ids)+2, self.context_length)
@@ -84,14 +96,13 @@ class KModel(torch.nn.Module):
         duration = torch.sigmoid(duration).sum(axis=-1) / speed
         pred_dur = torch.round(duration).clamp(min=1).long()
         logger.debug(f"pred_dur: {pred_dur}")
-        pred_aln_trg = torch.zeros(input_lengths, pred_dur.sum().item())
-        c_frame = 0
-        for i in range(pred_aln_trg.size(0)):
-            pred_aln_trg[i, c_frame:c_frame + pred_dur[0,i].item()] = 1
-            c_frame += pred_dur[0,i].item()
+        indices = torch.repeat_interleave(torch.arange(input_ids.shape[1], device=self.device), pred_dur)
+        pred_aln_trg = torch.zeros((input_ids.shape[1], indices.shape[0]), device=self.device)
+        pred_aln_trg[indices, torch.arange(indices.shape[0])] = 1
         pred_aln_trg = pred_aln_trg.unsqueeze(0).to(self.device)
         en = d.transpose(-1, -2) @ pred_aln_trg
         F0_pred, N_pred = self.predictor.F0Ntrain(en, s)
         t_en = self.text_encoder(input_ids, input_lengths, text_mask)
         asr = t_en @ pred_aln_trg
-        return self.decoder(asr, F0_pred, N_pred, ref_s[:, :128]).squeeze().cpu()
+        audio = self.decoder(asr, F0_pred, N_pred, ref_s[:, :128]).squeeze().cpu()
+        return Output(audio=audio, pred_dur=pred_dur.cpu()) if return_output else audio

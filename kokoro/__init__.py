@@ -1,4 +1,4 @@
-__version__ = '0.3.4'
+__version__ = '0.3.5'
 
 from loguru import logger
 import sys
@@ -17,7 +17,7 @@ logger.add(
 )
 
 # Disable before release or as needed
-# logger.disable("kokoro")
+logger.disable("kokoro")
 
 from .model import KModel
 from .pipeline import KPipeline

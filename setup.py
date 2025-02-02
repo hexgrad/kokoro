@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='kokoro',
-    version='0.3.4',
+    version='0.3.5',
     packages=find_packages(),
     install_requires=[
         'huggingface_hub',
