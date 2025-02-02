@@ -77,7 +77,7 @@ class KModel(torch.nn.Module):
         phonemes: str,
         ref_s: torch.FloatTensor,
         speed: Number = 1,
-        return_output: Bool = False # MARK: BACKWARD COMPAT
+        return_output: bool = False # MARK: BACKWARD COMPAT
     ) -> Union[Output, torch.FloatTensor]:
         input_ids = list(filter(lambda i: i is not None, map(lambda p: self.vocab.get(p), phonemes)))
         logger.debug(f"phonemes: {phonemes} -> input_ids: {input_ids}")
