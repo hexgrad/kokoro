@@ -199,7 +199,7 @@ class KPipeline:
         model: KModel,
         ps: str,
         pack: torch.FloatTensor,
-        speed: Number
+        speed: Number = 1
     ) -> KModel.Output:
         return model(ps, pack[len(ps)-1], speed, return_output=True)
 
@@ -237,7 +237,7 @@ class KPipeline:
         speed: Number = 1,
         split_pattern: Optional[str] = r'\n+',
         model: Optional[KModel] = None
-    ) -> Generator[KPipeline.Result, None, None]:
+    ) -> Generator['KPipeline.Result', None, None]:
         model = model or self.model
         if model and voice is None:
             raise ValueError('Specify a voice: en_us_pipeline(text="Hello world!", voice="af_heart")')
@@ -256,7 +256,7 @@ class KPipeline:
                         logger.warning(f"Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
                         ps = ps[:510]
                     output = KPipeline.infer(model, ps, pack, speed) if model else None
-                    yield Result(graphemes=gs, phonemes=ps, output=output)
+                    yield self.Result(graphemes=gs, phonemes=ps, output=output)
             else:
                 ps = self.g2p(graphemes)
                 if not ps:
@@ -265,4 +265,4 @@ class KPipeline:
                     logger.warning(f'Truncating len(ps) == {len(ps)} > 510')
                     ps = ps[:510]
                 output = KPipeline.infer(model, ps, pack, speed) if model else None
-                yield Result(graphemes=graphemes, phonemes=ps, output=output)
+                yield self.Result(graphemes=graphemes, phonemes=ps, output=output)

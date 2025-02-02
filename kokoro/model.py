@@ -78,7 +78,7 @@ class KModel(torch.nn.Module):
         ref_s: torch.FloatTensor,
         speed: Number = 1,
         return_output: bool = False # MARK: BACKWARD COMPAT
-    ) -> Union[KModel.Output, torch.FloatTensor]:
+    ) -> Union['KModel.Output', torch.FloatTensor]:
         input_ids = list(filter(lambda i: i is not None, map(lambda p: self.vocab.get(p), phonemes)))
         logger.debug(f"phonemes: {phonemes} -> input_ids: {input_ids}")
         assert len(input_ids)+2 <= self.context_length, (len(input_ids)+2, self.context_length)
@@ -94,7 +94,7 @@ class KModel(torch.nn.Module):
         x, _ = self.predictor.lstm(d)
         duration = self.predictor.duration_proj(x)
         duration = torch.sigmoid(duration).sum(axis=-1) / speed
-        pred_dur = torch.round(duration).clamp(min=1).long()
+        pred_dur = torch.round(duration).clamp(min=1).long().squeeze()
         logger.debug(f"pred_dur: {pred_dur}")
         indices = torch.repeat_interleave(torch.arange(input_ids.shape[1], device=self.device), pred_dur)
         pred_aln_trg = torch.zeros((input_ids.shape[1], indices.shape[0]), device=self.device)
@@ -105,4 +105,4 @@ class KModel(torch.nn.Module):
         t_en = self.text_encoder(input_ids, input_lengths, text_mask)
         asr = t_en @ pred_aln_trg
         audio = self.decoder(asr, F0_pred, N_pred, ref_s[:, :128]).squeeze().cpu()
-        return Output(audio=audio, pred_dur=pred_dur.cpu()) if return_output else audio
+        return self.Output(audio=audio, pred_dur=pred_dur.cpu()) if return_output else audio
