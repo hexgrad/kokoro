@@ -135,6 +135,7 @@ class KPipeline:
     def load_voice(self, voice: str, delimiter: str = ",") -> torch.FloatTensor:
         if voice in self.voices:
             return self.voices[voice]
+        logger.debug(f"Loading voice: {voice}")
         packs = [self.load_single_voice(v) for v in voice.split(delimiter)]
         if len(packs) == 1:
             return packs[0]
@@ -232,16 +233,15 @@ class KPipeline:
     def __call__(
         self,
         text: Union[str, List[str]],
-        voice: str,
+        voice: Optional[str] = None,
         speed: Number = 1,
         split_pattern: Optional[str] = r'\n+',
         model: Optional[KModel] = None
     ) -> Generator[Result, None, None]:
-        logger.debug(f"Loading voice: {voice}")
-        pack = self.load_voice(voice)
         model = model or self.model
-        pack = pack.to(model.device) if model else pack
-        logger.debug(f"Voice loaded on device: {pack.device if hasattr(pack, 'device') else 'N/A'}")
+        if model and voice is None:
+            raise ValueError('Specify a voice: en_us_pipeline(text="Hello world!", voice="af_heart")')
+        pack = self.load_voice(voice).to(model.device) if model else None
         if isinstance(text, str):
             text = re.split(split_pattern, text.strip()) if split_pattern else [text]
         for graphemes in text:
