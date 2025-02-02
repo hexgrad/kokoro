@@ -237,7 +237,7 @@ class KPipeline:
         speed: Number = 1,
         split_pattern: Optional[str] = r'\n+',
         model: Optional[KModel] = None
-    ) -> Generator[Result, None, None]:
+    ) -> Generator[KPipeline.Result, None, None]:
         model = model or self.model
         if model and voice is None:
             raise ValueError('Specify a voice: en_us_pipeline(text="Hello world!", voice="af_heart")')

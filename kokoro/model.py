@@ -78,7 +78,7 @@ class KModel(torch.nn.Module):
         ref_s: torch.FloatTensor,
         speed: Number = 1,
         return_output: bool = False # MARK: BACKWARD COMPAT
-    ) -> Union[Output, torch.FloatTensor]:
+    ) -> Union[KModel.Output, torch.FloatTensor]:
         input_ids = list(filter(lambda i: i is not None, map(lambda p: self.vocab.get(p), phonemes)))
         logger.debug(f"phonemes: {phonemes} -> input_ids: {input_ids}")
         assert len(input_ids)+2 <= self.context_length, (len(input_ids)+2, self.context_length)
