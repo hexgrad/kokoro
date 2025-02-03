@@ -223,7 +223,8 @@ class KPipeline:
 
     @classmethod
     def join_timestamps(cls, tokens: List[en.MToken], pred_dur: torch.LongTensor):
-        # TODO
+        # HACK: Magic number 600 going from pred_dur frames to sample_rate of 24000
+        # print(pred_dur.shape)
         return
 
     @dataclass
@@ -280,7 +281,7 @@ class KPipeline:
                         logger.warning(f"Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
                         ps = ps[:510]
                     output = KPipeline.infer(model, ps, pack, speed) if model else None
-                    if output and output.pred_dur:
+                    if output is not None and output.pred_dur is not None:
                         KPipeline.join_timestamps(tks, output.pred_dur)
                     yield self.Result(graphemes=gs, phonemes=ps, tokens=tks, output=output)
             else:
