@@ -91,7 +91,7 @@ class KPipeline:
                 logger.warning("EspeakFallback not Enabled: OOD words will be skipped")
                 logger.warning({str(e)})
                 fallback = None
-            self.g2p = en.G2P(trf=trf, british=lang_code=='b', fallback=fallback)
+            self.g2p = en.G2P(trf=trf, british=lang_code=='b', fallback=fallback, unk='')
         elif lang_code == 'j':
             try:
                 from misaki import ja
@@ -143,55 +143,59 @@ class KPipeline:
         return self.voices[voice]
 
     @classmethod
+    def tokens_to_ps(cls, tokens: List[en.MToken]) -> str:
+        return ''.join(t.phonemes + (' ' if t.whitespace else '') for t in tokens).strip()
+
+    @classmethod
     def waterfall_last(
         cls,
-        pairs: List[Tuple[str, str]],
+        tokens: List[en.MToken],
         next_count: int,
         waterfall: List[str] = ['!.?…', ':;', ',—'],
         bumps: List[str] = [')', '”']
     ) -> int:
         for w in waterfall:
-            z = next((i for i, (_, ps) in reversed(list(enumerate(pairs))) if ps.strip() in set(w)), None)
-            if z is not None:
+            z = next((i for i, t in reversed(list(enumerate(tokens))) if t.phonemes in set(w)), None)
+            if z is None:
+                continue
+            z += 1
+            if z < len(tokens) and tokens[z].phonemes in bumps:
                 z += 1
-                if z < len(pairs) and pairs[z][1].strip() in bumps:
-                    z += 1
-                _, ps = zip(*pairs[:z])
-                if next_count - len(''.join(ps)) <= 510:
-                    return z
-        return len(pairs)
+            if next_count - len(cls.tokens_to_ps(tokens[:z])) <= 510:
+                return z
+        return len(tokens)
+
+    @classmethod
+    def tokens_to_text(cls, tokens: List[en.MToken]) -> str:
+        return ''.join(t.text + t.whitespace for t in tokens).strip()
 
     def en_tokenize(
         self,
-        tokens: List[Union[en.MutableToken, List[en.MutableToken]]]
-    ) -> Generator[Tuple[str, str], None, None]:
-        pairs = []
-        count = 0
-        for w in tokens:
-            for t in (w if isinstance(w, list) else [w]):
-                if t.phonemes is None:
-                    continue
-                next_ps = ' ' if t.prespace and pairs and not pairs[-1][1].endswith(' ') and t.phonemes else ''
-                next_ps += t.phonemes.replace('ɾ', 'T') # American English: ɾ => T
-                next_ps += ' ' if t.whitespace else ''
-                next_count = count + len(next_ps.rstrip())
-                if next_count > 510:
-                    z = KPipeline.waterfall_last(pairs, next_count)
-                    text, ps = zip(*pairs[:z])
-                    ps = ''.join(ps)
-                    text_chunk = ''.join(text).strip()
-                    ps_chunk = ps.strip()
-                    logger.debug(f"Chunking text at {z}: '{text_chunk[:30]}{'...' if len(text_chunk) > 30 else ''}'")
-                    yield text_chunk, ps_chunk
-                    pairs = pairs[z:]
-                    count -= len(ps)
-                    if not pairs:
-                        next_ps = next_ps.lstrip()
-                pairs.append((t.text + t.whitespace, next_ps))
-                count += len(next_ps)
-        if pairs:
-            text, ps = zip(*pairs)
-            yield ''.join(text).strip(), ''.join(ps).strip()
+        tokens: List[en.MToken]
+    ) -> Generator[Tuple[str, str, List[en.MToken]], None, None]:
+        tks = []
+        pcount = 0
+        for t in tokens:
+            # American English: ɾ => T
+            t.phonemes = '' if t.phonemes is None else t.phonemes.replace('ɾ', 'T')
+            next_ps = t.phonemes + (' ' if t.whitespace else '')
+            next_pcount = pcount + len(next_ps.rstrip())
+            if next_pcount > 510:
+                z = KPipeline.waterfall_last(tks, next_pcount)
+                text = KPipeline.tokens_to_text(tks[:z])
+                logger.debug(f"Chunking text at {z}: '{text[:30]}{'...' if len(text) > 30 else ''}'")
+                ps = KPipeline.tokens_to_ps(tks[:z])
+                yield text, ps, tks[:z]
+                tks = tks[z:]
+                pcount = len(KPipeline.tokens_to_ps(tks))
+                if not tks:
+                    next_ps = next_ps.lstrip()
+            tks.append(t)
+            pcount += len(next_ps)
+        if tks:
+            text = KPipeline.tokens_to_text(tks)
+            ps = KPipeline.tokens_to_ps(tks)
+            yield ''.join(text).strip(), ''.join(ps).strip(), tks
 
     @classmethod
     def infer(
@@ -207,6 +211,7 @@ class KPipeline:
     class Result:
         graphemes: str
         phonemes: str
+        tokens: Optional[List[en.MToken]] = None
         output: Optional[KModel.Output] = None
 
         @property
@@ -249,14 +254,14 @@ class KPipeline:
             if self.lang_code in 'ab':
                 logger.debug(f"Processing English text: {graphemes[:50]}{'...' if len(graphemes) > 50 else ''}")
                 _, tokens = self.g2p(graphemes)
-                for gs, ps in self.en_tokenize(tokens):
+                for gs, ps, tks in self.en_tokenize(tokens):
                     if not ps:
                         continue
                     elif len(ps) > 510:
                         logger.warning(f"Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
                         ps = ps[:510]
                     output = KPipeline.infer(model, ps, pack, speed) if model else None
-                    yield self.Result(graphemes=gs, phonemes=ps, output=output)
+                    yield self.Result(graphemes=gs, phonemes=ps, tokens=tks, output=output)
             else:
                 ps = self.g2p(graphemes)
                 if not ps:
