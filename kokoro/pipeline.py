@@ -8,6 +8,18 @@ from typing import Generator, List, Optional, Tuple, Union
 import re
 import torch
 
+ALIASES = {
+    'en-us': 'a',
+    'en-gb': 'b',
+    'es': 'e',
+    'fr-fr': 'f',
+    'hi': 'h'
+    'it': 'i',
+    'pt-br': 'p',
+    'ja': 'j',
+    'zh': 'z',
+}
+
 LANG_CODES = dict(
     # pip install misaki[en]
     a='American English',
@@ -66,6 +78,8 @@ class KPipeline:
                    If None, will auto-select cuda if available
                    If 'cuda' and not available, will explicitly raise an error
         """
+        lang_code = lang_code.lower()
+        lang_code = ALIASES.get(lang_code, lang_code)
         assert lang_code in LANG_CODES, (lang_code, LANG_CODES)
         self.lang_code = lang_code
         self.model = None
@@ -207,6 +221,11 @@ class KPipeline:
     ) -> KModel.Output:
         return model(ps, pack[len(ps)-1], speed, return_output=True)
 
+    @classmethod
+    def join_timestamps(cls, tokens: List[en.MToken], pred_dur: torch.LongTensor):
+        # TODO
+        return
+
     @dataclass
     class Result:
         graphemes: str
@@ -261,6 +280,8 @@ class KPipeline:
                         logger.warning(f"Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
                         ps = ps[:510]
                     output = KPipeline.infer(model, ps, pack, speed) if model else None
+                    if output and output.pred_dur:
+                        KPipeline.join_timestamps(tks, output.pred_dur)
                     yield self.Result(graphemes=gs, phonemes=ps, tokens=tks, output=output)
             else:
                 ps = self.g2p(graphemes)
