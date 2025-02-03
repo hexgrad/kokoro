@@ -13,7 +13,7 @@ ALIASES = {
     'en-gb': 'b',
     'es': 'e',
     'fr-fr': 'f',
-    'hi': 'h'
+    'hi': 'h',
     'it': 'i',
     'pt-br': 'p',
     'ja': 'j',
