@@ -8,7 +8,7 @@ from transformers import AlbertConfig
 from typing import Dict, Optional, Union
 import json
 import torch
-
+import os
 class KModel(torch.nn.Module):
     '''
     KModel is a torch.nn.Module with 2 main responsibilities:
@@ -61,10 +61,20 @@ class KModel(torch.nn.Module):
                 logger.debug(f"Did not load {key} from state_dict")
                 state_dict = {k[7:]: v for k, v in state_dict.items()}
                 getattr(self, key).load_state_dict(state_dict, strict=False)
+        self.to(self.device)
 
     @property
     def device(self):
-        return self.bert.device
+        if torch.backends.mps.is_available():
+            # Enable MPS fallback to CPU for unsupported operations
+            os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+            device = torch.device("mps")
+        elif torch.cuda.is_available():
+            device = torch.device("cuda")
+        else:
+            device = torch.device("cpu")
+        torch.set_default_device(device)
+        return device
 
     @dataclass
     class Output:
