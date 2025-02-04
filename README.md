@@ -8,7 +8,7 @@ An inference library for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)
 You can run this cell on [Google Colab](https://colab.research.google.com/). [Listen to samples](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/SAMPLES.md).
 ```py
 # 1️⃣ Install kokoro
-!pip install -q kokoro>=0.3.5 soundfile
+!pip install -q kokoro>=0.7.3 soundfile
 # 2️⃣ Install espeak, used for English OOD fallback and some non-English languages
 !apt-get -qq -y install espeak-ng > /dev/null 2>&1
 # 🇪🇸 'e' => Spanish es
@@ -82,6 +82,6 @@ dependencies:
 - 📊 Thank you to everyone who contributed synthetic training data.
 - ❤️ Special thanks to all compute sponsors.
 - 👾 Discord server: https://discord.gg/QuGxSWBfQy
-- 🪽 Kokoro is a Japanese word that translates to "heart" or "spirit". Kokoro is also the name of an [AI in the Terminator franchise](https://terminator.fandom.com/wiki/Kokoro).
+- 🪽 Kokoro is a Japanese word that translates to "heart" or "spirit". Kokoro is also a [character in the Terminator franchise](https://terminator.fandom.com/wiki/Kokoro) along with [Misaki](https://github.com/hexgrad/misaki?tab=readme-ov-file#acknowledgements).
 
 <img src="https://static0.gamerantimages.com/wordpress/wp-content/uploads/2024/08/terminator-zero-41-1.jpg" width="400" alt="kokoro" />
