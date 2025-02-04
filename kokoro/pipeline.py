@@ -223,9 +223,41 @@ class KPipeline:
 
     @classmethod
     def join_timestamps(cls, tokens: List[en.MToken], pred_dur: torch.LongTensor):
-        # HACK: Magic number 600 going from pred_dur frames to sample_rate of 24000
-        # print(pred_dur.shape)
-        return
+        # Multiply by 600 to go from pred_dur frames to sample_rate 24000
+        # Equivalent to dividing pred_dur frames by 40 to get timestamp in seconds
+        # We will count nice round half-frames, so the divisor is 80
+        MAGIC_DIVISOR = 80
+        if not tokens or len(pred_dur) < 3:
+            # We expect at least 3: <bos>, token, <eos>
+            return
+        # We track 2 counts, measured in half-frames: (left, right)
+        # This way we can cut space characters in half
+        # TODO: Is -3 an appropriate offset?
+        left = right = 2 * max(0, pred_dur[0].item() - 3)
+        # Updates:
+        # left = right + (2 * token_dur) + space_dur
+        # right = left + space_dur
+        i = 1
+        for t in tokens:
+            if i >= len(pred_dur)-1:
+                break
+            if not t.phonemes:
+                if t.whitespace:
+                    i += 1
+                    left = right + pred_dur[i].item()
+                    right = left + pred_dur[i].item()
+                    i += 1
+                continue
+            j = i + len(t.phonemes)
+            if j >= len(pred_dur):
+                break
+            t.start_ts = left / MAGIC_DIVISOR
+            token_dur = pred_dur[i: j].sum().item()
+            space_dur = pred_dur[j].item() if t.whitespace else 0
+            left = right + (2 * token_dur) + space_dur
+            t.end_ts = left / MAGIC_DIVISOR
+            right = left + space_dur
+            i = j + (1 if t.whitespace else 0)
 
     @dataclass
     class Result:
