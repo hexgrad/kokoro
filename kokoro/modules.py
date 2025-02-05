@@ -50,21 +50,21 @@ class TextEncoder(nn.Module):
     def forward(self, x, input_lengths, m):
         x = self.embedding(x)  # [B, T, emb]
         x = x.transpose(1, 2)  # [B, emb, T]
-        m = m.to(input_lengths.device).unsqueeze(1)
+        m = m.unsqueeze(1)
         x.masked_fill_(m, 0.0)
         for c in self.cnn:
             x = c(x)
             x.masked_fill_(m, 0.0)
         x = x.transpose(1, 2)  # [B, T, chn]
-        input_lengths = input_lengths.cpu().numpy()
-        x = nn.utils.rnn.pack_padded_sequence(x, input_lengths, batch_first=True, enforce_sorted=False)
+        lengths = input_lengths if input_lengths.device == torch.device('cpu') else input_lengths.to('cpu')
+        x = nn.utils.rnn.pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
         self.lstm.flatten_parameters()
         x, _ = self.lstm(x)
         x, _ = nn.utils.rnn.pad_packed_sequence(x, batch_first=True)
         x = x.transpose(-1, -2)
-        x_pad = torch.zeros([x.shape[0], x.shape[1], m.shape[-1]])
+        x_pad = torch.zeros([x.shape[0], x.shape[1], m.shape[-1]], device=x.device)
         x_pad[:, :, :x.shape[-1]] = x
-        x = x_pad.to(x.device)
+        x = x_pad
         x.masked_fill_(m, 0.0)
         return x
 
@@ -108,17 +108,15 @@ class ProsodyPredictor(nn.Module):
 
     def forward(self, texts, style, text_lengths, alignment, m):
         d = self.text_encoder(texts, style, text_lengths, m)
-        batch_size = d.shape[0]
-        text_size = d.shape[1]
-        input_lengths = text_lengths.cpu().numpy()
-        x = nn.utils.rnn.pack_padded_sequence(d, input_lengths, batch_first=True, enforce_sorted=False)
-        m = m.to(text_lengths.device).unsqueeze(1)
+        m = m.unsqueeze(1)
+        lengths = text_lengths if text_lengths.device == torch.device('cpu') else text_lengths.to('cpu')
+        x = nn.utils.rnn.pack_padded_sequence(d, lengths, batch_first=True, enforce_sorted=False)
         self.lstm.flatten_parameters()
         x, _ = self.lstm(x)
         x, _ = nn.utils.rnn.pad_packed_sequence(x, batch_first=True)
-        x_pad = torch.zeros([x.shape[0], m.shape[-1], x.shape[-1]])
+        x_pad = torch.zeros([x.shape[0], m.shape[-1], x.shape[-1]], device=x.device)
         x_pad[:, :x.shape[1], :] = x
-        x = x_pad.to(x.device)
+        x = x_pad
         duration = self.duration_proj(nn.functional.dropout(x, 0.5, training=False))
         en = (d.transpose(-1, -2) @ alignment)
         return duration.squeeze(-1), en
@@ -148,32 +146,33 @@ class DurationEncoder(nn.Module):
         self.sty_dim = sty_dim
 
     def forward(self, x, style, text_lengths, m):
-        masks = m.to(text_lengths.device)
+        masks = m
         x = x.permute(2, 0, 1)
         s = style.expand(x.shape[0], x.shape[1], -1)
         x = torch.cat([x, s], axis=-1)
         x.masked_fill_(masks.unsqueeze(-1).transpose(0, 1), 0.0)
         x = x.transpose(0, 1)
-        input_lengths = text_lengths.cpu().numpy()
         x = x.transpose(-1, -2)
         for block in self.lstms:
             if isinstance(block, AdaLayerNorm):
                 x = block(x.transpose(-1, -2), style).transpose(-1, -2)
-                x = torch.cat([x, s.permute(1, -1, 0)], axis=1)
+                x = torch.cat([x, s.permute(1, 2, 0)], axis=1)
                 x.masked_fill_(masks.unsqueeze(-1).transpose(-1, -2), 0.0)
             else:
+                lengths = text_lengths if text_lengths.device == torch.device('cpu') else text_lengths.to('cpu')
                 x = x.transpose(-1, -2)
                 x = nn.utils.rnn.pack_padded_sequence(
-                    x, input_lengths, batch_first=True, enforce_sorted=False)
+                    x, lengths, batch_first=True, enforce_sorted=False)
                 block.flatten_parameters()
                 x, _ = block(x)
                 x, _ = nn.utils.rnn.pad_packed_sequence(
                     x, batch_first=True)
                 x = F.dropout(x, p=self.dropout, training=False)
                 x = x.transpose(-1, -2)
-                x_pad = torch.zeros([x.shape[0], x.shape[1], m.shape[-1]])
+                x_pad = torch.zeros([x.shape[0], x.shape[1], m.shape[-1]], device=x.device)
                 x_pad[:, :, :x.shape[-1]] = x
-                x = x_pad.to(x.device)
+                x = x_pad
+
         return x.transpose(-1, -2)
 
 

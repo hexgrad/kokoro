@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from kokoro.custom_stft import CustomSTFT
+
 
 # https://github.com/yl4579/StyleTTS2/blob/main/Modules/utils.py
 def init_weights(m, mean=0.0, std=0.01):
@@ -253,7 +255,7 @@ class SourceModuleHnNSF(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, style_dim, resblock_kernel_sizes, upsample_rates, upsample_initial_channel, resblock_dilation_sizes, upsample_kernel_sizes, gen_istft_n_fft, gen_istft_hop_size):
+    def __init__(self, style_dim, resblock_kernel_sizes, upsample_rates, upsample_initial_channel, resblock_dilation_sizes, upsample_kernel_sizes, gen_istft_n_fft, gen_istft_hop_size, disable_complex=False):
         super(Generator, self).__init__()
         self.num_kernels = len(resblock_kernel_sizes)
         self.num_upsamples = len(upsample_rates)
@@ -288,7 +290,11 @@ class Generator(nn.Module):
         self.ups.apply(init_weights)
         self.conv_post.apply(init_weights)
         self.reflection_pad = nn.ReflectionPad1d((1, 0))
-        self.stft = TorchSTFT(filter_length=gen_istft_n_fft, hop_length=gen_istft_hop_size, win_length=gen_istft_n_fft)
+        self.stft = (
+            CustomSTFT(filter_length=gen_istft_n_fft, hop_length=gen_istft_hop_size, win_length=gen_istft_n_fft)
+            if disable_complex
+            else TorchSTFT(filter_length=gen_istft_n_fft, hop_length=gen_istft_hop_size, win_length=gen_istft_n_fft)
+        )
 
     def forward(self, x, s, f0):
         with torch.no_grad():
@@ -382,7 +388,8 @@ class Decoder(nn.Module):
                  upsample_initial_channel,
                  resblock_dilation_sizes,
                  upsample_kernel_sizes,
-                 gen_istft_n_fft, gen_istft_hop_size):
+                 gen_istft_n_fft, gen_istft_hop_size,
+                 disable_complex=False):
         super().__init__()
         self.encode = AdainResBlk1d(dim_in + 2, 1024, style_dim)
         self.decode = nn.ModuleList()
@@ -395,7 +402,7 @@ class Decoder(nn.Module):
         self.asr_res = nn.Sequential(weight_norm(nn.Conv1d(512, 64, kernel_size=1)))
         self.generator = Generator(style_dim, resblock_kernel_sizes, upsample_rates, 
                                    upsample_initial_channel, resblock_dilation_sizes, 
-                                   upsample_kernel_sizes, gen_istft_n_fft, gen_istft_hop_size)
+                                   upsample_kernel_sizes, gen_istft_n_fft, gen_istft_hop_size, disable_complex=disable_complex)
 
     def forward(self, asr, F0_curve, N, s):
         F0 = self.F0_conv(F0_curve.unsqueeze(1))
