@@ -221,6 +221,56 @@ class KPipeline:
     ) -> KModel.Output:
         return model(ps, pack[len(ps)-1], speed, return_output=True)
 
+    def generate_from_tokens(
+        self,
+        tokens: Union[str, List[en.MToken]],
+        voice: str,
+        speed: Number = 1,
+        model: Optional[KModel] = None
+    ) -> Generator['KPipeline.Result', None, None]:
+        """Generate audio from either raw phonemes or pre-processed tokens.
+        
+        Args:
+            tokens: Either a phoneme string or list of pre-processed MTokens
+            voice: The voice to use for synthesis
+            speed: Speech speed modifier (default: 1)
+            model: Optional KModel instance (uses pipeline's model if not provided)
+        
+        Yields:
+            KPipeline.Result containing the input tokens and generated audio
+            
+        Raises:
+            ValueError: If no voice is provided or token sequence exceeds model limits
+        """
+        model = model or self.model
+        if model and voice is None:
+            raise ValueError('Specify a voice: pipeline.generate_from_tokens(..., voice="af_heart")')
+        
+        pack = self.load_voice(voice).to(model.device) if model else None
+
+        # Handle raw phoneme string
+        if isinstance(tokens, str):
+            logger.debug("Processing phonemes from raw string")
+            if len(tokens) > 510:
+                raise ValueError(f'Phoneme string too long: {len(tokens)} > 510')
+            output = KPipeline.infer(model, tokens, pack, speed) if model else None
+            yield self.Result(graphemes='', phonemes=tokens, output=output)
+            return
+        
+        logger.debug("Processing MTokens")
+        # Handle pre-processed tokens
+        for gs, ps, tks in self.en_tokenize(tokens):
+            if not ps:
+                continue
+            elif len(ps) > 510:
+                logger.warning(f"Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
+                logger.warning("Truncating to 510 characters")
+                ps = ps[:510]
+            output = KPipeline.infer(model, ps, pack, speed) if model else None
+            if output is not None and output.pred_dur is not None:
+                KPipeline.join_timestamps(tks, output.pred_dur)
+            yield self.Result(graphemes=gs, phonemes=ps, tokens=tks, output=output)
+
     @classmethod
     def join_timestamps(cls, tokens: List[en.MToken], pred_dur: torch.LongTensor):
         # Multiply by 600 to go from pred_dur frames to sample_rate 24000
