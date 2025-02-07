@@ -10,12 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "kokoro-js": "file:..",
-    "motion": "^11.12.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
     "@eslint/js": "^9.15.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
@@ -26,8 +20,15 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.12.0",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.15",
+    "kokoro-js": "file:..",
+    "motion": "^11.12.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "vite": "^6.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.1"
   }
 }
