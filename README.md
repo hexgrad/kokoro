@@ -8,7 +8,7 @@ An inference library for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)
 You can run this cell on [Google Colab](https://colab.research.google.com/). [Listen to samples](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/SAMPLES.md).
 ```py
 # 1️⃣ Install kokoro
-!pip install -q kokoro>=0.7.4 soundfile
+!pip install -q kokoro>=0.7.11 soundfile
 # 2️⃣ Install espeak, used for English OOD fallback and some non-English languages
 !apt-get -qq -y install espeak-ng > /dev/null 2>&1
 # 🇪🇸 'e' => Spanish es
