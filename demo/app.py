@@ -148,17 +148,8 @@ with gr.Blocks() as stream_tab:
         gr.Markdown(STREAM_NOTE)
         gr.DuplicateButton()
 
-BANNER_TEXT = '''
-[***Kokoro*** **is an open-weight TTS model with 82 million parameters.**](https://huggingface.co/hexgrad/Kokoro-82M)
-
-As of January 31st, 2025, Kokoro was the most-liked [**TTS model**](https://huggingface.co/models?pipeline_tag=text-to-speech&sort=likes) and the most-liked [**TTS space**](https://huggingface.co/spaces?sort=likes&search=tts) on Hugging Face.
-
-This demo currently only showcases English, but you can directly use the model to access other languages.  (PRs accepted!)
-'''
 API_OPEN = True
 with gr.Blocks() as app:
-    with gr.Row():
-        gr.Markdown(BANNER_TEXT)
     with gr.Row():
         with gr.Column():
             text = gr.Textbox(label='Input Text', info=f"Arbitrarily many characters supported")
