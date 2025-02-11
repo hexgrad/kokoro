@@ -1,0 +1,3 @@
+kokoro>=0.7.13
+gradio
+pip
