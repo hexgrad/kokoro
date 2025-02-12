@@ -195,20 +195,20 @@ class KPipeline:
             next_ps = t.phonemes + (' ' if t.whitespace else '')
             next_pcount = pcount + len(next_ps.rstrip())
             if next_pcount > 510:
-                z = KPipeline.waterfall_last(tks, next_pcount)
-                text = KPipeline.tokens_to_text(tks[:z])
+                z = self.waterfall_last(tks, next_pcount)
+                text = self.tokens_to_text(tks[:z])
                 logger.debug(f"Chunking text at {z}: '{text[:30]}{'...' if len(text) > 30 else ''}'")
-                ps = KPipeline.tokens_to_ps(tks[:z])
+                ps = self.tokens_to_ps(tks[:z])
                 yield text, ps, tks[:z]
                 tks = tks[z:]
-                pcount = len(KPipeline.tokens_to_ps(tks))
+                pcount = len(self.tokens_to_ps(tks))
                 if not tks:
                     next_ps = next_ps.lstrip()
             tks.append(t)
             pcount += len(next_ps)
         if tks:
-            text = KPipeline.tokens_to_text(tks)
-            ps = KPipeline.tokens_to_ps(tks)
+            text = self.tokens_to_text(tks)
+            ps = self.tokens_to_ps(tks)
             yield ''.join(text).strip(), ''.join(ps).strip(), tks
 
     @classmethod
@@ -253,7 +253,7 @@ class KPipeline:
             logger.debug("Processing phonemes from raw string")
             if len(tokens) > 510:
                 raise ValueError(f'Phoneme string too long: {len(tokens)} > 510')
-            output = KPipeline.infer(model, tokens, pack, speed) if model else None
+            output = self.infer(model, tokens, pack, speed) if model else None
             yield self.Result(graphemes='', phonemes=tokens, output=output)
             return
         
@@ -266,9 +266,9 @@ class KPipeline:
                 logger.warning(f"Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
                 logger.warning("Truncating to 510 characters")
                 ps = ps[:510]
-            output = KPipeline.infer(model, ps, pack, speed) if model else None
+            output = self.infer(model, ps, pack, speed) if model else None
             if output is not None and output.pred_dur is not None:
-                KPipeline.join_timestamps(tks, output.pred_dur)
+                self.join_timestamps(tks, output.pred_dur)
             yield self.Result(graphemes=gs, phonemes=ps, tokens=tks, output=output)
 
     @classmethod
@@ -362,9 +362,9 @@ class KPipeline:
                     elif len(ps) > 510:
                         logger.warning(f"Unexpected len(ps) == {len(ps)} > 510 and ps == '{ps}'")
                         ps = ps[:510]
-                    output = KPipeline.infer(model, ps, pack, speed) if model else None
+                    output = self.infer(model, ps, pack, speed) if model else None
                     if output is not None and output.pred_dur is not None:
-                        KPipeline.join_timestamps(tks, output.pred_dur)
+                        self.join_timestamps(tks, output.pred_dur)
                     yield self.Result(graphemes=gs, phonemes=ps, tokens=tks, output=output)
             else:
                 ps = self.g2p(graphemes)
@@ -373,5 +373,5 @@ class KPipeline:
                 elif len(ps) > 510:
                     logger.warning(f'Truncating len(ps) == {len(ps)} > 510')
                     ps = ps[:510]
-                output = KPipeline.infer(model, ps, pack, speed) if model else None
+                output = self.infer(model, ps, pack, speed) if model else None
                 yield self.Result(graphemes=graphemes, phonemes=ps, output=output)
