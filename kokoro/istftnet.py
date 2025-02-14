@@ -1,4 +1,5 @@
 # https://github.com/yl4579/StyleTTS2/blob/main/Modules/istftnet.py
+import math
 from scipy.signal import get_window
 from torch.nn.utils import weight_norm
 import numpy as np
@@ -259,9 +260,9 @@ class Generator(nn.Module):
         self.num_upsamples = len(upsample_rates)
         self.m_source = SourceModuleHnNSF(
                     sampling_rate=24000,
-                    upsample_scale=np.prod(upsample_rates) * gen_istft_hop_size,
+                    upsample_scale=math.prod(upsample_rates) * gen_istft_hop_size,
                     harmonic_num=8, voiced_threshod=10)
-        self.f0_upsamp = nn.Upsample(scale_factor=np.prod(upsample_rates) * gen_istft_hop_size)
+        self.f0_upsamp = nn.Upsample(scale_factor=math.prod(upsample_rates) * gen_istft_hop_size)
         self.noise_convs = nn.ModuleList()
         self.noise_res = nn.ModuleList()
         self.ups = nn.ModuleList()
