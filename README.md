@@ -21,6 +21,7 @@ You can run this cell on [Google Colab](https://colab.research.google.com/). [Li
 from kokoro import KPipeline
 from IPython.display import display, Audio
 import soundfile as sf
+import torch
 # 🇺🇸 'a' => American English, 🇬🇧 'b' => British English
 # 🇯🇵 'j' => Japanese: pip install misaki[ja]
 # 🇨🇳 'z' => Mandarin Chinese: pip install misaki[zh]
@@ -49,6 +50,14 @@ generator = pipeline(
     text, voice='af_heart', # <= change voice here
     speed=1, split_pattern=r'\n+'
 )
+
+# Alternatively, load voice tensor directly:
+voice_tensor = torch.load('path/to/voice.pt', weights_only=True)
+generator = pipeline(
+    text, voice=voice_tensor,
+    speed=1, split_pattern=r'\n+'
+)
+
 for i, (gs, ps, audio) in enumerate(generator):
     print(i)  # i => index
     print(gs) # gs => graphemes/text

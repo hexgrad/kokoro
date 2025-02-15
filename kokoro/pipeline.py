@@ -146,7 +146,9 @@ class KPipeline:
     If multiple voices are requested, they are averaged.
     Delimiter is optional and defaults to ','.
     """
-    def load_voice(self, voice: str, delimiter: str = ",") -> torch.FloatTensor:
+    def load_voice(self, voice: Union[str, torch.FloatTensor], delimiter: str = ",") -> torch.FloatTensor:
+        if isinstance(voice, torch.FloatTensor):
+            return voice
         if voice in self.voices:
             return self.voices[voice]
         logger.debug(f"Loading voice: {voice}")
