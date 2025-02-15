@@ -277,7 +277,7 @@ class Generator(nn.Module):
                 self.resblocks.append(AdaINResBlock1(ch, k, d, style_dim))
             c_cur = upsample_initial_channel // (2 ** (i + 1))
             if i + 1 < len(upsample_rates):
-                stride_f0 = np.prod(upsample_rates[i + 1:])
+                stride_f0 = math.prod(upsample_rates[i + 1:])
                 self.noise_convs.append(nn.Conv1d(
                     gen_istft_n_fft + 2, c_cur, kernel_size=stride_f0 * 2, stride=stride_f0, padding=(stride_f0+1) // 2))
                 self.noise_res.append(AdaINResBlock1(c_cur, 7, [1,3,5], style_dim))
