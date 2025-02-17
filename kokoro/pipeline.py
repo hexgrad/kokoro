@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from huggingface_hub import hf_hub_download
 from loguru import logger
 from misaki import en, espeak
-from numbers import Number
 from typing import Generator, List, Optional, Tuple, Union
 import re
 import torch
@@ -219,7 +218,7 @@ class KPipeline:
         model: KModel,
         ps: str,
         pack: torch.FloatTensor,
-        speed: Number = 1
+        speed: float = 1
     ) -> KModel.Output:
         return model(ps, pack[len(ps)-1], speed, return_output=True)
 
@@ -227,7 +226,7 @@ class KPipeline:
         self,
         tokens: Union[str, List[en.MToken]],
         voice: str,
-        speed: Number = 1,
+        speed: float = 1,
         model: Optional[KModel] = None
     ) -> Generator['KPipeline.Result', None, None]:
         """Generate audio from either raw phonemes or pre-processed tokens.
@@ -343,7 +342,7 @@ class KPipeline:
         self,
         text: Union[str, List[str]],
         voice: Optional[str] = None,
-        speed: Number = 1,
+        speed: float = 1,
         split_pattern: Optional[str] = r'\n+',
         model: Optional[KModel] = None
     ) -> Generator['KPipeline.Result', None, None]:
