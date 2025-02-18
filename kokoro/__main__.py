@@ -126,7 +126,9 @@ def main() -> None:
         file: Path = args.input_file
         text = file.read_text()
     else:
-        text = input()
+        import sys
+        print("Press Ctrl+D to stop reading input and start generating", flush=True)
+        text = '\n'.join(sys.stdin)
 
     logger.debug(f"Input text: {text!r}")
 
