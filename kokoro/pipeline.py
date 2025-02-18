@@ -342,7 +342,7 @@ class KPipeline:
         self,
         text: Union[str, List[str]],
         voice: Optional[str] = None,
-        speed: float = 1,
+        speed: Number = 1,
         split_pattern: Optional[str] = r'\n+',
         model: Optional[KModel] = None
     ) -> Generator['KPipeline.Result', None, None]:
@@ -350,10 +350,17 @@ class KPipeline:
         if model and voice is None:
             raise ValueError('Specify a voice: en_us_pipeline(text="Hello world!", voice="af_heart")')
         pack = self.load_voice(voice).to(model.device) if model else None
+        
+        # Convert input to list of segments
         if isinstance(text, str):
             text = re.split(split_pattern, text.strip()) if split_pattern else [text]
+            
+        # Process each segment
         for graphemes in text:
-            # TODO(misaki): Unify G2P interface between English and non-English
+            if not graphemes.strip():  # Skip empty segments
+                continue
+                
+            # English processing (unchanged)
             if self.lang_code in 'ab':
                 logger.debug(f"Processing English text: {graphemes[:50]}{'...' if len(graphemes) > 50 else ''}")
                 _, tokens = self.g2p(graphemes)
@@ -367,12 +374,50 @@ class KPipeline:
                     if output is not None and output.pred_dur is not None:
                         KPipeline.join_timestamps(tks, output.pred_dur)
                     yield self.Result(graphemes=gs, phonemes=ps, tokens=tks, output=output)
+            
+            # Non-English processing with chunking
             else:
-                ps = self.g2p(graphemes)
-                if not ps:
-                    continue
-                elif len(ps) > 510:
-                    logger.warning(f'Truncating len(ps) == {len(ps)} > 510')
-                    ps = ps[:510]
-                output = KPipeline.infer(model, ps, pack, speed) if model else None
-                yield self.Result(graphemes=graphemes, phonemes=ps, output=output)
+                # Split long text into smaller chunks (roughly 400 characters each)
+                # Using sentence boundaries when possible
+                chunk_size = 400
+                chunks = []
+                
+                # Try to split on sentence boundaries first
+                sentences = re.split(r'([.!?]+)', graphemes)
+                current_chunk = ""
+                
+                for i in range(0, len(sentences), 2):
+                    sentence = sentences[i]
+                    # Add the punctuation back if it exists
+                    if i + 1 < len(sentences):
+                        sentence += sentences[i + 1]
+                        
+                    if len(current_chunk) + len(sentence) <= chunk_size:
+                        current_chunk += sentence
+                    else:
+                        if current_chunk:
+                            chunks.append(current_chunk.strip())
+                        current_chunk = sentence
+                
+                if current_chunk:
+                    chunks.append(current_chunk.strip())
+                
+                # If no chunks were created (no sentence boundaries), fall back to character-based chunking
+                if not chunks:
+                    chunks = [graphemes[i:i+chunk_size] for i in range(0, len(graphemes), chunk_size)]
+                
+                # Process each chunk
+                for chunk in chunks:
+                    if not chunk.strip():
+                        continue
+                        
+                    ps = self.g2p(chunk)
+                    if not ps:
+                        continue
+                    elif len(ps) > 510:
+                        logger.warning(f'Truncating len(ps) == {len(ps)} > 510')
+                        ps = ps[:510]
+                        
+                    output = KPipeline.infer(model, ps, pack, speed) if model else None
+                    yield self.Result(graphemes=chunk, phonemes=ps, output=output)
+
