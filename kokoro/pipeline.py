@@ -316,6 +316,7 @@ class KPipeline:
         phonemes: str
         tokens: Optional[List[en.MToken]] = None
         output: Optional[KModel.Output] = None
+        text_index: Optional[int] = None
 
         @property
         def audio(self) -> Optional[torch.FloatTensor]:
@@ -356,7 +357,7 @@ class KPipeline:
             text = re.split(split_pattern, text.strip()) if split_pattern else [text]
             
         # Process each segment
-        for graphemes in text:
+        for graphemes_index, graphemes in enumerate(text):
             if not graphemes.strip():  # Skip empty segments
                 continue
                 
@@ -373,7 +374,7 @@ class KPipeline:
                     output = KPipeline.infer(model, ps, pack, speed) if model else None
                     if output is not None and output.pred_dur is not None:
                         KPipeline.join_timestamps(tks, output.pred_dur)
-                    yield self.Result(graphemes=gs, phonemes=ps, tokens=tks, output=output)
+                    yield self.Result(graphemes=gs, phonemes=ps, tokens=tks, output=output, text_index=graphemes_index)
             
             # Non-English processing with chunking
             else:
@@ -419,5 +420,5 @@ class KPipeline:
                         ps = ps[:510]
                         
                     output = KPipeline.infer(model, ps, pack, speed) if model else None
-                    yield self.Result(graphemes=chunk, phonemes=ps, output=output)
+                    yield self.Result(graphemes=chunk, phonemes=ps, output=output, text_index=graphemes_index)
 
