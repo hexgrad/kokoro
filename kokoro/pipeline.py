@@ -343,7 +343,7 @@ class KPipeline:
         self,
         text: Union[str, List[str]],
         voice: Optional[str] = None,
-        speed: Number = 1,
+        speed: float = 1,
         split_pattern: Optional[str] = r'\n+',
         model: Optional[KModel] = None
     ) -> Generator['KPipeline.Result', None, None]:
