@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from huggingface_hub import hf_hub_download
 from loguru import logger
 from misaki import en, espeak
-from typing import Generator, List, Optional, Tuple, Union
+from typing import Callable, Generator, List, Optional, Tuple, Union
 import re
 import torch
 
@@ -66,6 +66,7 @@ class KPipeline:
         repo_id: Optional[str] = None,
         model: Union[KModel, bool] = True,
         trf: bool = False,
+        en_callable: Optional[Callable[[str], str]] = None,
         device: Optional[str] = None
     ):
         """Initialize a KPipeline.
@@ -120,7 +121,10 @@ class KPipeline:
         elif lang_code == 'z':
             try:
                 from misaki import zh
-                self.g2p = zh.ZHG2P(version=None if repo_id.endswith('/Kokoro-82M') else '1.1')
+                self.g2p = zh.ZHG2P(
+                    version=None if repo_id.endswith('/Kokoro-82M') else '1.1',
+                    en_callable=en_callable
+                )
             except ImportError:
                 logger.error("You need to `pip install misaki[zh]` to use lang_code='z'")
                 raise
@@ -221,8 +225,10 @@ class KPipeline:
         model: KModel,
         ps: str,
         pack: torch.FloatTensor,
-        speed: float = 1
+        speed: Union[float, Callable[[int], float]] = 1
     ) -> KModel.Output:
+        if callable(speed):
+            speed = speed(len(ps))
         return model(ps, pack[len(ps)-1], speed, return_output=True)
 
     def generate_from_tokens(
@@ -346,7 +352,7 @@ class KPipeline:
         self,
         text: Union[str, List[str]],
         voice: Optional[str] = None,
-        speed: float = 1,
+        speed: Union[float, Callable[[int], float]] = 1,
         split_pattern: Optional[str] = r'\n+',
         model: Optional[KModel] = None
     ) -> Generator['KPipeline.Result', None, None]:
