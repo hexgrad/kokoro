@@ -63,6 +63,7 @@ class KPipeline:
     def __init__(
         self,
         lang_code: str,
+        repo_id: Optional[str] = None,
         model: Union[KModel, bool] = True,
         trf: bool = False,
         device: Optional[str] = None
@@ -77,6 +78,10 @@ class KPipeline:
                    If None, will auto-select cuda if available
                    If 'cuda' and not available, will explicitly raise an error
         """
+        if repo_id is None:
+            repo_id = 'hexgrad/Kokoro-82M'
+            print(f"WARNING: Defaulting repo_id to {repo_id}. Pass repo_id='{repo_id}' to suppress this warning.")
+        self.repo_id = repo_id
         lang_code = lang_code.lower()
         lang_code = ALIASES.get(lang_code, lang_code)
         assert lang_code in LANG_CODES, (lang_code, LANG_CODES)
@@ -90,7 +95,7 @@ class KPipeline:
             if device is None:
                 device = 'cuda' if torch.cuda.is_available() else 'cpu'
             try:
-                self.model = KModel().to(device).eval()
+                self.model = KModel(repo_id=repo_id).to(device).eval()
             except RuntimeError as e:
                 if device == 'cuda':
                     raise RuntimeError(f"""Failed to initialize model on CUDA: {e}. 
@@ -115,7 +120,7 @@ class KPipeline:
         elif lang_code == 'z':
             try:
                 from misaki import zh
-                self.g2p = zh.ZHG2P()
+                self.g2p = zh.ZHG2P(version=None if repo_id.endswith('/Kokoro-82M') else '1.1')
             except ImportError:
                 logger.error("You need to `pip install misaki[zh]` to use lang_code='z'")
                 raise
@@ -130,7 +135,7 @@ class KPipeline:
         if voice.endswith('.pt'):
             f = voice
         else:
-            f = hf_hub_download(repo_id=KModel.REPO_ID, filename=f'voices/{voice}.pt')
+            f = hf_hub_download(repo_id=self.repo_id, filename=f'voices/{voice}.pt')
             if not voice.startswith(self.lang_code):
                 v = LANG_CODES.get(voice, voice)
                 p = LANG_CODES.get(self.lang_code, self.lang_code)
@@ -157,13 +162,12 @@ class KPipeline:
         self.voices[voice] = torch.mean(torch.stack(packs), dim=0)
         return self.voices[voice]
 
-    @classmethod
-    def tokens_to_ps(cls, tokens: List[en.MToken]) -> str:
+    @staticmethod
+    def tokens_to_ps(tokens: List[en.MToken]) -> str:
         return ''.join(t.phonemes + (' ' if t.whitespace else '') for t in tokens).strip()
 
-    @classmethod
+    @staticmethod
     def waterfall_last(
-        cls,
         tokens: List[en.MToken],
         next_count: int,
         waterfall: List[str] = ['!.?…', ':;', ',—'],
@@ -176,12 +180,12 @@ class KPipeline:
             z += 1
             if z < len(tokens) and tokens[z].phonemes in bumps:
                 z += 1
-            if next_count - len(cls.tokens_to_ps(tokens[:z])) <= 510:
+            if next_count - len(KPipeline.tokens_to_ps(tokens[:z])) <= 510:
                 return z
         return len(tokens)
 
-    @classmethod
-    def tokens_to_text(cls, tokens: List[en.MToken]) -> str:
+    @staticmethod
+    def tokens_to_text(tokens: List[en.MToken]) -> str:
         return ''.join(t.text + t.whitespace for t in tokens).strip()
 
     def en_tokenize(
@@ -212,9 +216,8 @@ class KPipeline:
             ps = KPipeline.tokens_to_ps(tks)
             yield ''.join(text).strip(), ''.join(ps).strip(), tks
 
-    @classmethod
+    @staticmethod
     def infer(
-        cls,
         model: KModel,
         ps: str,
         pack: torch.FloatTensor,
@@ -272,8 +275,8 @@ class KPipeline:
                 KPipeline.join_timestamps(tks, output.pred_dur)
             yield self.Result(graphemes=gs, phonemes=ps, tokens=tks, output=output)
 
-    @classmethod
-    def join_timestamps(cls, tokens: List[en.MToken], pred_dur: torch.LongTensor):
+    @staticmethod
+    def join_timestamps(tokens: List[en.MToken], pred_dur: torch.LongTensor):
         # Multiply by 600 to go from pred_dur frames to sample_rate 24000
         # Equivalent to dividing pred_dur frames by 40 to get timestamp in seconds
         # We will count nice round half-frames, so the divisor is 80
@@ -412,7 +415,7 @@ class KPipeline:
                     if not chunk.strip():
                         continue
                         
-                    ps = self.g2p(chunk)
+                    ps, _ = self.g2p(chunk)
                     if not ps:
                         continue
                     elif len(ps) > 510:
@@ -421,4 +424,3 @@ class KPipeline:
                         
                     output = KPipeline.infer(model, ps, pack, speed) if model else None
                     yield self.Result(graphemes=chunk, phonemes=ps, output=output, text_index=graphemes_index)
-

@@ -3,7 +3,6 @@ from .modules import CustomAlbert, ProsodyPredictor, TextEncoder
 from dataclasses import dataclass
 from huggingface_hub import hf_hub_download
 from loguru import logger
-from numbers import Number
 from transformers import AlbertConfig
 from typing import Dict, Optional, Union
 import json
@@ -24,14 +23,27 @@ class KModel(torch.nn.Module):
     so there is no need to repeatedly download config.json outside of KModel.
     '''
 
-    REPO_ID = 'hexgrad/Kokoro-82M'
+    MODEL_NAMES = {
+        'hexgrad/Kokoro-82M': 'kokoro-v1_0.pth',
+        'hexgrad/Kokoro-82M-v1.1-zh': 'kokoro-v1_1-zh.pth',
+    }
 
-    def __init__(self, config: Union[Dict, str, None] = None, model: Optional[str] = None, disable_complex: bool = False):
+    def __init__(
+        self,
+        repo_id: Optional[str] = None,
+        config: Union[Dict, str, None] = None,
+        model: Optional[str] = None,
+        disable_complex: bool = False
+    ):
         super().__init__()
+        if repo_id is None:
+            repo_id = 'hexgrad/Kokoro-82M'
+            print(f"WARNING: Defaulting repo_id to {repo_id}. Pass repo_id='{repo_id}' to suppress this warning.")
+        self.repo_id = repo_id
         if not isinstance(config, dict):
             if not config:
                 logger.debug("No config provided, downloading from HF")
-                config = hf_hub_download(repo_id=KModel.REPO_ID, filename='config.json')
+                config = hf_hub_download(repo_id=repo_id, filename='config.json')
             with open(config, 'r', encoding='utf-8') as r:
                 config = json.load(r)
                 logger.debug(f"Loaded config: {config}")
@@ -52,7 +64,7 @@ class KModel(torch.nn.Module):
             dim_out=config['n_mels'], disable_complex=disable_complex, **config['istftnet']
         )
         if not model:
-            model = hf_hub_download(repo_id=KModel.REPO_ID, filename='kokoro-v1_0.pth')
+            model = hf_hub_download(repo_id=repo_id, filename=MODEL_NAMES[repo_id])
         for key, state_dict in torch.load(model, map_location='cpu', weights_only=True).items():
             assert hasattr(self, key), key
             try:
@@ -76,7 +88,7 @@ class KModel(torch.nn.Module):
         self,
         input_ids: torch.LongTensor,
         ref_s: torch.FloatTensor,
-        speed: Number = 1
+        speed: float = 1
     ) -> tuple[torch.FloatTensor, torch.LongTensor]:
         input_lengths = torch.full(
             (input_ids.shape[0],), 
@@ -110,7 +122,7 @@ class KModel(torch.nn.Module):
         self,
         phonemes: str,
         ref_s: torch.FloatTensor,
-        speed: Number = 1,
+        speed: float = 1,
         return_output: bool = False
     ) -> Union['KModel.Output', torch.FloatTensor]:
         input_ids = list(filter(lambda i: i is not None, map(lambda p: self.vocab.get(p), phonemes)))
@@ -133,7 +145,7 @@ class KModelForONNX(torch.nn.Module):
         self,
         input_ids: torch.LongTensor,
         ref_s: torch.FloatTensor,
-        speed: Number = 1
+        speed: float = 1
     ) -> tuple[torch.FloatTensor, torch.LongTensor]:
         waveform, duration = self.kmodel.forward_with_tokens(input_ids, ref_s, speed)
         return waveform
