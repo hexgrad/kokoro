@@ -67,6 +67,7 @@ class KPipeline:
         model: Union[KModel, bool] = True,
         trf: bool = False,
         en_callable: Optional[Callable[[str], str]] = None,
+        weights: Optional[Union[float, list]] = None,
         device: Optional[str] = None
     ):
         """Initialize a KPipeline.
@@ -132,6 +133,7 @@ class KPipeline:
             language = LANG_CODES[lang_code]
             logger.warning(f"Using EspeakG2P(language='{language}'). Chunking logic not yet implemented, so long texts may be truncated unless you split them with '\\n'.")
             self.g2p = espeak.EspeakG2P(language=language)
+        self.weights = weights
 
     def load_single_voice(self, voice: str):
         if voice in self.voices:
@@ -147,6 +149,7 @@ class KPipeline:
         pack = torch.load(f, weights_only=True)
         self.voices[voice] = pack
         return pack
+    
 
     """
     load_voice is a helper function that lazily downloads and loads a voice:
@@ -154,17 +157,53 @@ class KPipeline:
     If multiple voices are requested, they are averaged.
     Delimiter is optional and defaults to ','.
     """
-    def load_voice(self, voice: Union[str, torch.FloatTensor], delimiter: str = ",") -> torch.FloatTensor:
+    def load_voice(self, voice: Union[str, torch.FloatTensor], weights: Optional[Union[float, list]] = None, delimiter: str = ",") -> torch.FloatTensor:
         if isinstance(voice, torch.FloatTensor):
             return voice
         if voice in self.voices:
             return self.voices[voice]
+        
         logger.debug(f"Loading voice: {voice}")
-        packs = [self.load_single_voice(v) for v in voice.split(delimiter)]
+
+        # Split the voice input into a list of individual voices
+        voice_list = voice.split(delimiter)
+        packs = [self.load_single_voice(v) for v in voice_list]
+        # Use provided weights or default to stored `self.weights`
+        weights = weights if weights is not None else self.weights
+
+        # If only one voice, return it directly
         if len(packs) == 1:
             return packs[0]
-        self.voices[voice] = torch.mean(torch.stack(packs), dim=0)
-        return self.voices[voice]
+
+        # Handle weights
+        if weights is None:
+            # Default: Equal weighting 
+            weights = [1 / len(packs)] * len(packs)
+        elif isinstance(weights, float):
+            if len(packs) != 2:
+                raise ValueError("Single weight for first voice can only be used with two voices"
+                f" but ({len(packs)}) voices were requested.")
+            if not (0 <= weights <= 1):
+                raise ValueError(f"Single weight for first of two voices must be between 0 and 1, but got {weights}.")
+            weights = [weights, 1 - weights]
+        elif isinstance(weights, list):
+            if len(weights) != len(packs):
+                raise ValueError(f"Number of weights ({len(weights)}) must match number of voices ({len(packs)}).")
+            if any(w < 0 for w in weights):
+                raise ValueError(f"All weight values must be non-negative, but got {weights}.")
+            weight_sum = sum(weights)
+            if weight_sum == 0:
+                raise ValueError("Weights sum to zero! Try some non-zero values.")
+            weights = [w / weight_sum for w in weights]  # Normalize
+        else:
+            raise TypeError("Weights must be a float or a list of floats.")
+        self.weights = weights
+        # Blend voices using weighted sum
+        blended_voice = sum(w * p for w, p in zip(weights, packs))
+
+        # Cache and return the blended voice
+        self.voices[voice] = blended_voice
+        return blended_voice
 
     @staticmethod
     def tokens_to_ps(tokens: List[en.MToken]) -> str:
@@ -352,6 +391,7 @@ class KPipeline:
         self,
         text: Union[str, List[str]],
         voice: Optional[str] = None,
+        weights: Optional[Union[float, list]] = None,
         speed: Union[float, Callable[[int], float]] = 1,
         split_pattern: Optional[str] = r'\n+',
         model: Optional[KModel] = None
@@ -359,8 +399,8 @@ class KPipeline:
         model = model or self.model
         if model and voice is None:
             raise ValueError('Specify a voice: en_us_pipeline(text="Hello world!", voice="af_heart")')
-        pack = self.load_voice(voice).to(model.device) if model else None
         
+        pack = self.load_voice(voice, weights=weights).to(model.device) if model else None
         # Convert input to list of segments
         if isinstance(text, str):
             text = re.split(split_pattern, text.strip()) if split_pattern else [text]
