@@ -150,59 +150,88 @@ class KPipeline:
         self.voices[voice] = pack
         return pack
     
+    """
+    validate_weights is a helper function to validate the weights argument:
+    Ensures that the weights argument is valid and normalizes it.
+    - If switching the number of voices, resets to equal weights unless weights are explicitly
+      re-provided, in part for backwards compatability with old behavior.
+    - If the same number of voices is used, retains last-known weights unless new ones are given.
+    - Ensures all values are non-negative and sum to 1.
+    """
+    def validate_weights(self, weights: Optional[Union[float, list]], n_voices: int) -> Optional[Union[float, list]]:
+        # Easy case: only one voice. (Enforce in case user specifies more than one.)
+        if n_voices == 1:
+            weights = [1.0,]
+            self.weights = weights
+            return weights
+    
+        if weights is None:
+            # Ensure weights is explicitly passed or reset if switching voice count
+            if self.weights is None or len(self.weights) != n_voices:
+                # Reset to equal weighting when the number of voices changes
+                weights = [1 / n_voices] * n_voices
+            else:
+                weights = self.weights  # Keep last used weights if voice count is unchanged
+        # Case where a float is given for the weight of the first of *two* specified voices:
+        elif isinstance(weights, float):
+            if n_voices != 2:
+                raise ValueError(f"Single float weight can only be used with two voices, but got {n_voices}.")
+            if not (0 <= weights <= 1):
+                raise ValueError(f"Single float weight must be between 0 and 1, but got {weights}.")
+            weights = [weights, 1 - weights]
+        # Otherwise, we expect a list of weights equal to n_voices and check it
+        elif isinstance(weights, list):
+            if len(weights) != n_voices:
+                raise ValueError(f"Number of weights ({len(weights)}) must match number of voices ({n_voices}).")
+            if any(w < 0 for w in weights):
+                raise ValueError(f"All weight values must be non-negative, but got {weights}.")
+            weight_sum = sum(weights)
+            if weight_sum == 0:
+                raise ValueError("Weights sum to zero! Try nonzero values.")
+            weights = [w / weight_sum for w in weights]  # Normalize
+        else:
+            raise TypeError("Weights must be a float or a list of floats.")
+
+        # Store the new weights for consistency
+        self.weights = weights
+        return weights
 
     """
     load_voice is a helper function that lazily downloads and loads a voice:
-    Single voice can be requested (e.g. 'af_bella') or multiple voices (e.g. 'af_bella,af_jessica').
-    If multiple voices are requested, they are averaged.
+    Single voice can be requested (e.g. 'af_bella') or multiple voices (e.g. 'af_bella,af_jessica,...').
+    If multiple voices are requested with no weights, they are equally averaged.
+    If multiple voices are requested with weights, they are blended using the provided weights [>=0].
+    If two voices only, a single float can be provided [0-1] for the weight of the first voice.
     Delimiter is optional and defaults to ','.
     """
     def load_voice(self, voice: Union[str, torch.FloatTensor], weights: Optional[Union[float, list]] = None, delimiter: str = ",") -> torch.FloatTensor:
         if isinstance(voice, torch.FloatTensor):
             return voice
-        if voice in self.voices:
-            return self.voices[voice]
-        
-        logger.debug(f"Loading voice: {voice}")
-
         # Split the voice input into a list of individual voices
+        # Need n_voices to validate weights
         voice_list = voice.split(delimiter)
         packs = [self.load_single_voice(v) for v in voice_list]
-        # Use provided weights or default to stored `self.weights`
-        weights = weights if weights is not None else self.weights
+        weights = self.validate_weights(weights, len(packs))
+        self.weights = weights
+        # Cache key is a tuple of voice and weights to distinguish combos already defined
+        # Key needed to track both voices and now also known combinations of voices:
+        cache_key = (voice, tuple(weights) if isinstance(weights, list) else weights)
+
+        if cache_key in self.voices:
+            return self.voices[cache_key] # We already know this one
+        logger.debug(f"Loading voice(s) {voice} with weight(s) {weights}")
 
         # If only one voice, return it directly
         if len(packs) == 1:
+            self.weights = weights
+            self.voices[cache_key] = packs[0]
             return packs[0]
-
-        # Handle weights
-        if weights is None:
-            # Default: Equal weighting 
-            weights = [1 / len(packs)] * len(packs)
-        elif isinstance(weights, float):
-            if len(packs) != 2:
-                raise ValueError("Single weight for first voice can only be used with two voices"
-                f" but ({len(packs)}) voices were requested.")
-            if not (0 <= weights <= 1):
-                raise ValueError(f"Single weight for first of two voices must be between 0 and 1, but got {weights}.")
-            weights = [weights, 1 - weights]
-        elif isinstance(weights, list):
-            if len(weights) != len(packs):
-                raise ValueError(f"Number of weights ({len(weights)}) must match number of voices ({len(packs)}).")
-            if any(w < 0 for w in weights):
-                raise ValueError(f"All weight values must be non-negative, but got {weights}.")
-            weight_sum = sum(weights)
-            if weight_sum == 0:
-                raise ValueError("Weights sum to zero! Try some non-zero values.")
-            weights = [w / weight_sum for w in weights]  # Normalize
-        else:
-            raise TypeError("Weights must be a float or a list of floats.")
-        self.weights = weights
-        # Blend voices using weighted sum
+        
+        # Otherwise blend voices using weighted sum
         blended_voice = sum(w * p for w, p in zip(weights, packs))
-
+        
         # Cache and return the blended voice
-        self.voices[voice] = blended_voice
+        self.voices[cache_key] = blended_voice
         return blended_voice
 
     @staticmethod
