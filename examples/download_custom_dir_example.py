@@ -6,8 +6,8 @@ from typing import Generator
 
 lang_code = 'a'
 repo_id = 'hexgrad/Kokoro-82M'
-cache_dir = os.path.expanduser('~/kokoro_models')
-local_dir = cache_dir
+cache_dir = os.path.expanduser('~/kokoro_models/cache')
+local_dir = os.path.expanduser('~/kokoro_models/local')
 voice = 'am_michael'
 
 # This text is for demonstration purposes only, unseen during training
@@ -38,12 +38,13 @@ def save_audio(generator: Generator, save_dir: str) -> None:
 
 
 def test_download_into_custom_directory():
-    global text, lang_code, repo_id, cache_dir, voice
+    global text, lang_code, repo_id, cache_dir, local_dir, voice
 
     pipeline = KPipeline(
         lang_code='a',
         repo_id=repo_id,
-        cache_dir=cache_dir
+        cache_dir=cache_dir,
+        local_dir=local_dir
     )
 
     # Generate and save audio files
@@ -56,7 +57,7 @@ def test_download_into_custom_directory():
 
 
 def test_load_from_local_file() -> None:
-    global text, lang_code, repo_id, cache_dir, voice
+    global text, lang_code, repo_id, cache_dir, local_dir, voice
 
     # use "local_files_only=True" only if: 
     # You are sure that the model is present in the provided cache directory
@@ -64,6 +65,7 @@ def test_load_from_local_file() -> None:
         lang_code='a',
         repo_id=repo_id,
         cache_dir=cache_dir,
+        local_dir=local_dir,
         local_files_only=True
     )
 
