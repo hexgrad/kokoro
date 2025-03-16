@@ -7,6 +7,8 @@ from transformers import AlbertConfig
 from typing import Dict, Optional, Union
 import json
 import torch
+from pathlib import Path
+
 
 class KModel(torch.nn.Module):
     '''
@@ -33,7 +35,10 @@ class KModel(torch.nn.Module):
         repo_id: Optional[str] = None,
         config: Union[Dict, str, None] = None,
         model: Optional[str] = None,
-        disable_complex: bool = False
+        disable_complex: bool = False,
+        cache_dir: str | Path | None = None,
+        local_dir: str | Path | None = None,
+        local_files_only: bool = False
     ):
         super().__init__()
         if repo_id is None:
@@ -43,7 +48,13 @@ class KModel(torch.nn.Module):
         if not isinstance(config, dict):
             if not config:
                 logger.debug("No config provided, downloading from HF")
-                config = hf_hub_download(repo_id=repo_id, filename='config.json')
+                config = hf_hub_download(
+                    repo_id=repo_id,
+                    filename='config.json',
+                    cache_dir=cache_dir,
+                    local_dir=local_dir,
+                    local_files_only=local_files_only
+                )
             with open(config, 'r', encoding='utf-8') as r:
                 config = json.load(r)
                 logger.debug(f"Loaded config: {config}")
@@ -64,7 +75,13 @@ class KModel(torch.nn.Module):
             dim_out=config['n_mels'], disable_complex=disable_complex, **config['istftnet']
         )
         if not model:
-            model = hf_hub_download(repo_id=repo_id, filename=KModel.MODEL_NAMES[repo_id])
+            model = hf_hub_download(
+                repo_id=repo_id,
+                filename=KModel.MODEL_NAMES[repo_id],
+                cache_dir=cache_dir,
+                local_dir=local_dir,
+                local_files_only=local_files_only
+            )
         for key, state_dict in torch.load(model, map_location='cpu', weights_only=True).items():
             assert hasattr(self, key), key
             try:

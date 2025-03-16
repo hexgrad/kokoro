@@ -6,6 +6,7 @@ from misaki import en, espeak
 from typing import Callable, Generator, List, Optional, Tuple, Union
 import re
 import torch
+from pathlib import Path
 
 ALIASES = {
     'en-us': 'a',
@@ -67,7 +68,10 @@ class KPipeline:
         model: Union[KModel, bool] = True,
         trf: bool = False,
         en_callable: Optional[Callable[[str], str]] = None,
-        device: Optional[str] = None
+        device: Optional[str] = None,
+        cache_dir: str | Path | None = None,
+        local_dir: str | Path | None = None,
+        local_files_only: bool = False
     ):
         """Initialize a KPipeline.
         
@@ -78,7 +82,17 @@ class KPipeline:
             device: Override default device selection ('cuda' or 'cpu', or None for auto)
                    If None, will auto-select cuda if available
                    If 'cuda' and not available, will explicitly raise an error
+            ### Parameters for downloading kokoro model from huggingface hub
+            cache_dir: Path to the folder where cached files are stored.
+            local_dir: If provided, the downloaded file will be placed under this directory.
+            local_files_only: If `True`, avoid downloading the file and return the path to the local cached file if it exists.
         """
+
+        # custom cache dir and local dir for hf_hub_download
+        self.cache_dir = cache_dir
+        self.local_dir = local_dir
+        self.local_files_only = local_files_only
+
         if repo_id is None:
             repo_id = 'hexgrad/Kokoro-82M'
             print(f"WARNING: Defaulting repo_id to {repo_id}. Pass repo_id='{repo_id}' to suppress this warning.")
@@ -96,7 +110,12 @@ class KPipeline:
             if device is None:
                 device = 'cuda' if torch.cuda.is_available() else 'cpu'
             try:
-                self.model = KModel(repo_id=repo_id).to(device).eval()
+                self.model = KModel(
+                    repo_id=repo_id,
+                    cache_dir=cache_dir,
+                    local_dir=local_dir, 
+                    local_files_only=local_files_only
+                ).to(device).eval()
             except RuntimeError as e:
                 if device == 'cuda':
                     raise RuntimeError(f"""Failed to initialize model on CUDA: {e}. 
@@ -139,7 +158,13 @@ class KPipeline:
         if voice.endswith('.pt'):
             f = voice
         else:
-            f = hf_hub_download(repo_id=self.repo_id, filename=f'voices/{voice}.pt')
+            f = hf_hub_download(
+                repo_id=self.repo_id,
+                filename=f'voices/{voice}.pt',
+                cache_dir=self.cache_dir,
+                local_dir=self.local_dir,
+                local_files_only=self.local_files_only
+            )
             if not voice.startswith(self.lang_code):
                 v = LANG_CODES.get(voice, voice)
                 p = LANG_CODES.get(self.lang_code, self.lang_code)
