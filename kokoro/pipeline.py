@@ -200,7 +200,7 @@ class KPipeline:
         pcount = 0
         for t in tokens:
             # American English: ɾ => T
-            t.phonemes = '' if t.phonemes is None else t.phonemes.replace('ɾ', 'T')
+            t.phonemes = '' if t.phonemes is None else t.phonemes#.replace('ɾ', 'T')
             next_ps = t.phonemes + (' ' if t.whitespace else '')
             next_pcount = pcount + len(next_ps.rstrip())
             if next_pcount > 510:
