@@ -5,10 +5,31 @@ An inference library for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)
 > **Kokoro** is an open-weight TTS model with 82 million parameters. Despite its lightweight architecture, it delivers comparable quality to larger models while being significantly faster and more cost-efficient. With Apache-licensed weights, Kokoro can be deployed anywhere from production environments to personal projects.
 
 ### Usage
-You can run this cell on [Google Colab](https://colab.research.google.com/). [Listen to samples](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/SAMPLES.md).
+You can run this basic cell on [Google Colab](https://colab.research.google.com/). [Listen to samples](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/SAMPLES.md).
+```py
+!pip install -q kokoro>=0.9.1 soundfile
+!apt-get -qq -y install espeak-ng > /dev/null 2>&1
+from kokoro import KPipeline
+from IPython.display import display, Audio
+import soundfile as sf
+import torch
+pipeline = KPipeline(lang_code='a')
+text = '''
+[Kokoro](/kˈOkəɹO/) is an open-weight TTS model with 82 million parameters. Despite its lightweight architecture, it delivers comparable quality to larger models while being significantly faster and more cost-efficient. With Apache-licensed weights, [Kokoro](/kˈOkəɹO/) can be deployed anywhere from production environments to personal projects.
+'''
+generator = pipeline(text, voice='af_heart')
+for i, (gs, ps, audio) in enumerate(generator):
+    print(i, gs, ps)
+    display(Audio(data=audio, rate=24000, autoplay=i==0))
+    sf.write(f'{i}.wav', audio, 24000)
+```
+Under the hood, `kokoro` uses [`misaki`](https://pypi.org/project/misaki/), a G2P library at https://github.com/hexgrad/misaki
+
+### Advanced Usage
+You can run this advanced cell on [Google Colab](https://colab.research.google.com/).
 ```py
 # 1️⃣ Install kokoro
-!pip install -q kokoro>=0.9.0 soundfile
+!pip install -q kokoro>=0.9.1 soundfile
 # 2️⃣ Install espeak, used for English OOD fallback and some non-English languages
 !apt-get -qq -y install espeak-ng > /dev/null 2>&1
 # 🇪🇸 'e' => Spanish es
@@ -65,10 +86,7 @@ for i, (gs, ps, audio) in enumerate(generator):
     sf.write(f'{i}.wav', audio, 24000) # save each audio file
 ```
 
-Under the hood, `kokoro` uses [`misaki`](https://pypi.org/project/misaki/), a G2P library at https://github.com/hexgrad/misaki
-
 ### Conda Environment
-
 Use the following conda `environment.yml` if you're facing any dependency issues.
 ```yaml
 name: kokoro
@@ -84,7 +102,6 @@ dependencies:
 ```
 
 ### Acknowledgements
-
 - 🛠️ [@yl4579](https://huggingface.co/yl4579) for architecting StyleTTS 2.
 - 🏆 [@Pendrokar](https://huggingface.co/Pendrokar) for adding Kokoro as a contender in the TTS Spaces Arena.
 - 📊 Thank you to everyone who contributed synthetic training data.
