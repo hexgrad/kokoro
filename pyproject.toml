@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kokoro"
-version = "0.9.0"
+version = "0.9.1"
 description = "TTS"
 readme = "README.md"
 authors = [
@@ -21,7 +21,7 @@ dependencies = [
     "huggingface_hub",
     "loguru",
     "misaki[en]>=0.9.0",
-    "numpy==1.26.4",
+    "numpy",
     "torch",
     "transformers"
 ]
