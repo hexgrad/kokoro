@@ -1,9 +1,8 @@
 from attr import attr
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from scipy.signal import get_window
 
 class CustomSTFT(nn.Module):
     """
@@ -37,8 +36,8 @@ class CustomSTFT(nn.Module):
         self.freq_bins = self.n_fft // 2 + 1
 
         # Build window
-        win_np = get_window(window, self.win_length, fftbins=True).astype(np.float32)
-        window_tensor = torch.from_numpy(win_np)
+        assert window == 'hann', window
+        window_tensor = torch.hann_window(win_length, periodic=True, dtype=torch.float32)
         if self.win_length < self.n_fft:
             # Zero-pad up to n_fft
             extra = self.n_fft - self.win_length

@@ -1,13 +1,10 @@
-# https://github.com/yl4579/StyleTTS2/blob/main/Modules/istftnet.py
-import math
-from scipy.signal import get_window
+# ADAPTED from https://github.com/yl4579/StyleTTS2/blob/main/Modules/istftnet.py
+from kokoro.custom_stft import CustomSTFT
 from torch.nn.utils import weight_norm
-import numpy as np
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from kokoro.custom_stft import CustomSTFT
 
 
 # https://github.com/yl4579/StyleTTS2/blob/main/Modules/utils.py
@@ -86,7 +83,8 @@ class TorchSTFT(nn.Module):
         self.filter_length = filter_length
         self.hop_length = hop_length
         self.win_length = win_length
-        self.window = torch.from_numpy(get_window(window, win_length, fftbins=True).astype(np.float32))
+        assert window == 'hann', window
+        self.window = torch.hann_window(win_length, periodic=True, dtype=torch.float32)
 
     def transform(self, input_data):
         forward_transform = torch.stft(
@@ -120,7 +118,7 @@ class SineGen(nn.Module):
     voiced_thoreshold: F0 threshold for U/V classification (default 0)
     flag_for_pulse: this SinGen is used inside PulseGen (default False)
     Note: when flag_for_pulse is True, the first time step of a voiced
-        segment is always sin(np.pi) or cos(0)
+        segment is always sin(torch.pi) or cos(0)
     """
     def __init__(self, samp_rate, upsample_scale, harmonic_num=0,
                  sine_amp=0.1, noise_std=0.003,
@@ -146,7 +144,7 @@ class SineGen(nn.Module):
             where dim indicates fundamental tone and overtones
         """
         # convert to F0 in rad. The interger part n can be ignored
-        # because 2 * np.pi * n doesn't affect phase
+        # because 2 * torch.pi * n doesn't affect phase
         rad_values = (f0_values / self.sampling_rate) % 1
         # initial phase noise (no noise for fundamental component)
         rand_ini = torch.rand(f0_values.shape[0], f0_values.shape[2], device=f0_values.device)
@@ -155,7 +153,7 @@ class SineGen(nn.Module):
         # instantanouse phase sine[t] = sin(2*pi \sum_i=1 ^{t} rad)
         if not self.flag_for_pulse:
             rad_values = F.interpolate(rad_values.transpose(1, 2), scale_factor=1/self.upsample_scale, mode="linear").transpose(1, 2)
-            phase = torch.cumsum(rad_values, dim=1) * 2 * np.pi
+            phase = torch.cumsum(rad_values, dim=1) * 2 * torch.pi
             phase = F.interpolate(phase.transpose(1, 2) * self.upsample_scale, scale_factor=self.upsample_scale, mode="linear").transpose(1, 2)
             sines = torch.sin(phase)
         else:
@@ -181,7 +179,7 @@ class SineGen(nn.Module):
             # within the previous voiced segment.
             i_phase = torch.cumsum(rad_values - tmp_cumsum, dim=1)
             # get the sines
-            sines = torch.cos(i_phase * 2 * np.pi)
+            sines = torch.cos(i_phase * 2 * torch.pi)
         return sines
 
     def forward(self, f0):
@@ -379,7 +377,7 @@ class AdainResBlk1d(nn.Module):
 
     def forward(self, x, s):
         out = self._residual(x, s)
-        out = (out + self._shortcut(x)) / np.sqrt(2)
+        out = (out + self._shortcut(x)) * torch.rsqrt(torch.tensor(2))
         return out
 
 
