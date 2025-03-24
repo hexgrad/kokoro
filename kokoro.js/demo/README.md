@@ -43,7 +43,7 @@ npm run build
 Note this depends on build output from the previous step.
 
 ```sh
-cd kokoro.js/demo
+cd demo
 npm i
 ```
 
