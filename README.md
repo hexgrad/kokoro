@@ -30,13 +30,9 @@ You can run this advanced cell on [Google Colab](https://colab.research.google.c
 ```py
 # 1️⃣ Install kokoro
 !pip install -q kokoro>=0.9.2 soundfile
+
 # 2️⃣ Install espeak, used for English OOD fallback and some non-English languages
 !apt-get -qq -y install espeak-ng > /dev/null 2>&1
-# 🇪🇸 'e' => Spanish es
-# 🇫🇷 'f' => French fr-fr
-# 🇮🇳 'h' => Hindi hi
-# 🇮🇹 'i' => Italian it
-# 🇧🇷 'p' => Brazilian Portuguese pt-br
 
 # 3️⃣ Initalize a pipeline
 from kokoro import KPipeline
@@ -44,9 +40,14 @@ from IPython.display import display, Audio
 import soundfile as sf
 import torch
 # 🇺🇸 'a' => American English, 🇬🇧 'b' => British English
+# 🇪🇸 'e' => Spanish es
+# 🇫🇷 'f' => French fr-fr
+# 🇮🇳 'h' => Hindi hi
+# 🇮🇹 'i' => Italian it
 # 🇯🇵 'j' => Japanese: pip install misaki[ja]
+# 🇧🇷 'p' => Brazilian Portuguese pt-br
 # 🇨🇳 'z' => Mandarin Chinese: pip install misaki[zh]
-pipeline = KPipeline(lang_code='a') # <= make sure lang_code matches voice
+pipeline = KPipeline(lang_code='a') # <= make sure lang_code matches voice, reference above.
 
 # This text is for demonstration purposes only, unseen during training
 text = '''
