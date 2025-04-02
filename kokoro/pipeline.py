@@ -6,6 +6,7 @@ from misaki import en, espeak
 from typing import Callable, Generator, List, Optional, Tuple, Union
 import re
 import torch
+import os
 
 ALIASES = {
     'en-us': 'a',
@@ -93,8 +94,17 @@ class KPipeline:
         elif model:
             if device == 'cuda' and not torch.cuda.is_available():
                 raise RuntimeError("CUDA requested but not available")
+            if device is 'mps' and not torch.backends.mps.is_available():
+                raise RuntimeError("MPS requested but not available")
+            if device is 'mps' and os.environ.get('PYTORCH_ENABLE_MPS_FALLBACK') != 1:
+                raise RuntimeError("MPS requested but fallback not enabled")
             if device is None:
-                device = 'cuda' if torch.cuda.is_available() else 'cpu'
+                if torch.cuda.is_available():
+                    device = 'cuda'
+                elif os.environ.get('PYTORCH_ENABLE_MPS_FALLBACK') == 1 and torch.backends.mps.is_available():
+                    device = 'mps'
+                else:
+                    device = 'cpu'
             try:
                 self.model = KModel(repo_id=repo_id).to(device).eval()
             except RuntimeError as e:
