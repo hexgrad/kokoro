@@ -95,6 +95,14 @@ To install espeak-ng on Windows:
 
 For advanced configuration and usage on Windows, see the [official espeak-ng Windows guide](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md)
 
+### MacOS Apple Silicon GPU Acceleration
+
+On Mac M1/M2/M3/M4 devices, you can explicitly specify the environment variable `PYTORCH_ENABLE_MPS_FALLBACK=1` to enable GPU acceleration.
+
+```bash
+PYTORCH_ENABLE_MPS_FALLBACK=1 python run-your-kokoro-script.py
+```
+
 ### Conda Environment
 Use the following conda `environment.yml` if you're facing any dependency issues.
 ```yaml
