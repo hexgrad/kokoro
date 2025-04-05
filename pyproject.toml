@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kokoro"
-version = "0.9.2"
+version = "0.9.4"
 description = "TTS"
 readme = "README.md"
 authors = [
@@ -20,7 +20,7 @@ requires-python = ">=3.10, <3.13"
 dependencies = [
     "huggingface_hub",
     "loguru",
-    "misaki[en]>=0.9.2",
+    "misaki[en]>=0.9.4",
     "numpy",
     "torch",
     "transformers"
@@ -34,5 +34,5 @@ only-include = ["kokoro"]
 only-packages = true
 
 [project.urls]
-Homepage = "https://github.com/hexgrad/kokoros"
+Homepage = "https://github.com/hexgrad/kokoro"
 Repository = "https://github.com/hexgrad/kokoro"
