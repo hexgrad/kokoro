@@ -26,34 +26,31 @@ Follow the steps below to set up and run the application.
 
 ### 1. Clone the Repository
 
-Clone the examples repository from GitHub:
-
 ```sh
 git clone https://github.com/hexgrad/kokoro.git
 ```
 
-### 2. Navigate to the Project Directory
-
-Change your working directory to the `demo` folder:
+### 2. Build the Dependencies
 
 ```sh
-cd kokoro/kokoro.js/demo
+cd kokoro/kokoro.js
+npm i
+npm run build
 ```
 
-### 3. Install Dependencies
+### 3. Setup the Demo Project
 
-Install the necessary dependencies using npm:
+Note this depends on build output from the previous step.
 
 ```sh
+cd demo
 npm i
 ```
 
-### 4. Run the Development Server
-
-Start the development server:
+### 4. Start the Development Server
 
 ```sh
 npm run dev
 ```
 
-The application should now be running locally. Open your browser and go to `http://localhost:5173` to see it in action.
+The application should now be running locally. Open your browser and go to [http://localhost:5173](http://localhost:5173) to see it in action.

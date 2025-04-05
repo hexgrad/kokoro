@@ -32,11 +32,6 @@ You can run this advanced cell on [Google Colab](https://colab.research.google.c
 !pip install -q kokoro>=0.9.4 soundfile
 # 2️⃣ Install espeak, used for English OOD fallback and some non-English languages
 !apt-get -qq -y install espeak-ng > /dev/null 2>&1
-# 🇪🇸 'e' => Spanish es
-# 🇫🇷 'f' => French fr-fr
-# 🇮🇳 'h' => Hindi hi
-# 🇮🇹 'i' => Italian it
-# 🇧🇷 'p' => Brazilian Portuguese pt-br
 
 # 3️⃣ Initalize a pipeline
 from kokoro import KPipeline
@@ -44,9 +39,14 @@ from IPython.display import display, Audio
 import soundfile as sf
 import torch
 # 🇺🇸 'a' => American English, 🇬🇧 'b' => British English
+# 🇪🇸 'e' => Spanish es
+# 🇫🇷 'f' => French fr-fr
+# 🇮🇳 'h' => Hindi hi
+# 🇮🇹 'i' => Italian it
 # 🇯🇵 'j' => Japanese: pip install misaki[ja]
+# 🇧🇷 'p' => Brazilian Portuguese pt-br
 # 🇨🇳 'z' => Mandarin Chinese: pip install misaki[zh]
-pipeline = KPipeline(lang_code='a') # <= make sure lang_code matches voice
+pipeline = KPipeline(lang_code='a') # <= make sure lang_code matches voice, reference above.
 
 # This text is for demonstration purposes only, unseen during training
 text = '''
@@ -85,6 +85,15 @@ for i, (gs, ps, audio) in enumerate(generator):
     display(Audio(data=audio, rate=24000, autoplay=i==0))
     sf.write(f'{i}.wav', audio, 24000) # save each audio file
 ```
+
+### Windows Installation
+To install espeak-ng on Windows:
+1. Go to [espeak-ng releases](https://github.com/espeak-ng/espeak-ng/releases)
+2. Click on **Latest release** 
+3. Download the appropriate `*.msi` file (e.g. **espeak-ng-20191129-b702b03-x64.msi**)
+4. Run the downloaded installer
+
+For advanced configuration and usage on Windows, see the [official espeak-ng Windows guide](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md)
 
 ### Conda Environment
 Use the following conda `environment.yml` if you're facing any dependency issues.
