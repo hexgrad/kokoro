@@ -1,6 +1,6 @@
 # https://github.com/yl4579/StyleTTS2/blob/main/models.py
 from .istftnet import AdainResBlk1d
-from torch.nn.utils import weight_norm
+from torch.nn.utils.parametrizations import weight_norm
 from transformers import AlbertModel
 import numpy as np
 import torch
