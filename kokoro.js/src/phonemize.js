@@ -62,6 +62,28 @@ function split_num(match) {
 }
 
 /**
+ * Helper function to convert large units (K, M, B, T) to their full form
+ * @param {string} match The matched unit
+ * @returns {string} The converted unit/
+ */
+function convert_large_units(match) {
+  return match.replace(/(\d+)([KMBT])/gi, (fullMatch, number, unit) => {
+    switch (unit.toUpperCase()) {
+      case "K":
+        return number + " thousand"; // Chuyển K thành thousand
+      case "M":
+        return number + " million"; // Chuyển M thành million
+      case "B":
+        return number + " billion"; // Chuyển B thành billion
+      case "T":
+        return number + " trillion"; // Chuyển T thành trillion
+      default:
+        return fullMatch; // Trả về chuỗi gốc nếu không nhận diện được
+    }
+  });
+}
+
+/**
  * Helper function to format monetary values
  * @param {string} match The matched currency
  * @returns {string} The formatted currency
@@ -133,6 +155,8 @@ function normalize_text(text) {
       // 5. Handle numbers and currencies
       .replace(/\d*\.\d+|\b\d{4}s?\b|(?<!:)\b(?:[1-9]|1[0-2]):[0-5]\d\b(?!:)/g, split_num)
       .replace(/(?<=\d),(?=\d)/g, "")
+      .replace(/([$£])(\d+)([KMBT])/gi, convert_large_units) 
+      .replace(/([$£])(\d+\.\d{1,2})([KMBT]*)/gi, convert_large_units)
       .replace(/[$£]\d+(?:\.\d+)?(?: hundred| thousand| (?:[bm]|tr)illion)*\b|[$£]\d+\.\d\d?\b/gi, flip_money)
       .replace(/\d*\.\d+/g, point_num)
       .replace(/(?<=\d)-(?=\d)/g, " to ")
