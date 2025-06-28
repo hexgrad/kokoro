@@ -126,9 +126,9 @@ export class KokoroTTS {
       splitter = new TextSplitterStream();
       const chunks = split_pattern
         ? text
-            .split(split_pattern)
-            .map((chunk) => chunk.trim())
-            .filter((chunk) => chunk.length > 0)
+          .split(split_pattern)
+          .map((chunk) => chunk.trim())
+          .filter((chunk) => chunk.length > 0)
         : [text];
       splitter.push(...chunks);
     } else {
@@ -150,6 +150,12 @@ export class KokoroTTS {
 }
 
 export const env = {
+  set cacheDir(value) {
+    hf.cacheDir = value
+  },
+  get cacheDir() {
+    return hf.cacheDir
+  },
   set wasmPaths(value) {
     hf.backends.onnx.wasm.wasmPaths = value;
   },
