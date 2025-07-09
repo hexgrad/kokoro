@@ -1,7 +1,7 @@
 import { env as hf, StyleTextToSpeech2Model, AutoTokenizer, Tensor, RawAudio } from "@huggingface/transformers";
 import { phonemize } from "./phonemize.js";
 import { TextSplitterStream } from "./splitter.js";
-import { getVoiceData, VOICES } from "./voices.js";
+import { getVoiceData, VOICES, setVoiceDataUrl } from "./voices.js";
 
 const STYLE_DIM = 256;
 const SAMPLE_RATE = 24000;
@@ -161,6 +161,27 @@ export const env = {
   },
   get wasmPaths() {
     return hf.backends.onnx.wasm.wasmPaths;
+  },
+  set allowRemoteModels(value) {
+    hf.allowRemoteModels = value;
+  },
+  get allowRemoteModels() {
+    return hf.allowRemoteModels;
+  },
+  set allowLocalModels(value) {
+    hf.allowLocalModels = value;
+  },
+  get allowLocalModels() {
+    return hf.allowLocalModels;
+  },
+  set localModelPath(value) {
+    hf.localModelPath = value;
+  },
+  get localModelPath() {
+    return hf.localModelPath;
+  },
+  set voiceDataUrl(value) {
+    setVoiceDataUrl(value);
   },
 };
 
