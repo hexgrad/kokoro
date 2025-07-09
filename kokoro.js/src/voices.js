@@ -422,24 +422,25 @@ export const VOICES = Object.freeze({
 /**
  * The base URL for fetching voice data files.
  */
-let voiceDataUrl: string = "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices";
+let voiceDataUrl = "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices";
+
 
 /**
  * Retrieves the current voice data URL.
  * 
- * @returns {string} The current voice data URL.
+ * @returns The current voice data URL.
  */
-export const getVoiceDataUrl = (): string => {
+export const getVoiceDataUrl = () => {
   return voiceDataUrl;
 };
 
 /**
  * Sets a new voice data URL.
  * 
- * @param {string} url - The new URL to set for voice data.
+ * @param url - The new URL to set for voice data.
  * @throws Will throw an error if the URL is not a valid non-empty string.
  */
-export const setVoiceDataUrl = (url: string): void => {
+export const setVoiceDataUrl = (url) => {
   if (typeof url === 'string' && url.trim() !== '') {
     voiceDataUrl = url;
   } else {
