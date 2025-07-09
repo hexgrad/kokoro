@@ -418,7 +418,15 @@ export const VOICES = Object.freeze({
   // },
 });
 
-const VOICE_DATA_URL = "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices";
+let VOICE_DATA_URL = "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices";
+
+
+export function setVoiceDataUrl(value) {
+  if (typeof value !== "string") {
+    throw new Error("Invalid URL for voice data. ");
+  }
+  VOICE_DATA_URL = value;
+}
 
 /**
  *
