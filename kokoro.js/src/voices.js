@@ -430,7 +430,7 @@ let voiceDataUrl = "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/r
  * 
  * @returns The current voice data URL.
  */
-export const getVoiceDataUrl = () => {
+export function getVoiceDataUrl() {
   return voiceDataUrl;
 };
 
@@ -440,7 +440,7 @@ export const getVoiceDataUrl = () => {
  * @param url - The new URL to set for voice data.
  * @throws Will throw an error if the URL is not a valid non-empty string.
  */
-export const setVoiceDataUrl = (url) => {
+export function setVoiceDataUrl(url) {
   if (typeof url === 'string' && url.trim() !== '') {
     voiceDataUrl = url;
   } else {
