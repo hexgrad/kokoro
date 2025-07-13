@@ -23,10 +23,12 @@ export class KokoroTTS {
    * Create a new KokoroTTS instance.
    * @param {import('@huggingface/transformers').StyleTextToSpeech2Model} model The model
    * @param {import('@huggingface/transformers').PreTrainedTokenizer} tokenizer The tokenizer
+   * @param {"1.0"|"1.1"} version The version of the Chinese phonemization style
    */
-  constructor(model, tokenizer) {
+  constructor(model, tokenizer, version = "1.0") {
     this.model = model;
     this.tokenizer = tokenizer;
+    this.version = version;
   }
 
   /**
@@ -42,8 +44,9 @@ export class KokoroTTS {
     const model = StyleTextToSpeech2Model.from_pretrained(model_id, { progress_callback, dtype, device });
     const tokenizer = AutoTokenizer.from_pretrained(model_id, { progress_callback });
 
-    const info = await Promise.all([model, tokenizer]);
-    return new KokoroTTS(...info);
+    const version = model_id.includes("v1.1-zh") ? "1.1" : "1.0";
+
+    return new KokoroTTS(await model, await tokenizer, version);
   }
 
   get voices() {
@@ -60,7 +63,7 @@ export class KokoroTTS {
       console.table(VOICES);
       throw new Error(`Voice "${voice}" not found. Should be one of: ${Object.keys(VOICES).join(", ")}.`);
     }
-    const language = /** @type {"a"|"b"} */ (voice.at(0)); // "a" or "b"
+    const language = /** @type {"a"|"b"|"z"} */ (voice.at(0)); // "a" or "b" or "z"
     return language;
   }
 
@@ -74,7 +77,7 @@ export class KokoroTTS {
   async generate(text, { voice = "af_heart", speed = 1 } = {}) {
     const language = this._validate_voice(voice);
 
-    const phonemes = await phonemize(text, language);
+    const phonemes = await phonemize(text, language, this.version);
     const { input_ids } = this.tokenizer(phonemes, {
       truncation: true,
     });
@@ -135,7 +138,7 @@ export class KokoroTTS {
       throw new Error("Invalid input type. Expected string or TextSplitterStream.");
     }
     for await (const sentence of splitter) {
-      const phonemes = await phonemize(sentence, language);
+      const phonemes = await phonemize(sentence, language, this.version);
       const { input_ids } = this.tokenizer(phonemes, {
         truncation: true,
       });
