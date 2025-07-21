@@ -26,8 +26,9 @@ def export_onnx(model, output):
         output_names = [ 'waveform', 'duration' ],
         opset_version = 17, 
         dynamic_axes = {
-            'input_ids': { 1: 'input_ids_len' }, 
-            'waveform': { 0: 'num_samples' }, 
+            'input_ids': {0: "batch_size", 1: 'input_ids_len' }, 
+            'style': {0: "batch_size"}, 
+            "speed": {0: "batch_size"}
         }, 
         do_constant_folding = True, 
     )
