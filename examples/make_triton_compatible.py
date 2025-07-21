@@ -1,3 +1,7 @@
+"""
+This script makes the ONNX model compatible with Triton inference server.
+"""
+
 import sys
 import numpy as np
 import onnx
@@ -42,7 +46,7 @@ def add_squeeze(graph, speed_input, speed_unsqueezed):
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python add_batch.py <onnx_model_path>")
+        print("Usage: python make_triton_compatible.py <onnx_model_path>")
         sys.exit(1)
 
     onnx_model_path = sys.argv[1]
@@ -77,7 +81,7 @@ def main():
         onnx.checker.check_model(modified_model)
         
         # Save the modified model
-        output_path = onnx_model_path.replace('.onnx', '_squeezed.onnx')
+        output_path = onnx_model_path.replace('.onnx', '_triton.onnx')
         onnx.save(modified_model, output_path)
         print(f"Modified model saved to: {output_path}")
     else:
