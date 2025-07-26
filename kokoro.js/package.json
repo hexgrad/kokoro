@@ -35,6 +35,7 @@
   "description": "High-quality text-to-speech for the web",
   "dependencies": {
     "@huggingface/transformers": "^3.5.1",
+    "phonemize": "^1.0.0",
     "phonemizer": "^1.2.1"
   },
   "devDependencies": {

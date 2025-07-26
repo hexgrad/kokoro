@@ -1,4 +1,5 @@
 import { phonemize as espeakng } from "phonemizer";
+import { toZhuyin, toIPA } from "phonemize";
 
 /**
  * Helper function to split a string on a regex, but keep the delimiters.
@@ -164,25 +165,40 @@ function escapeRegExp(string) {
 const PUNCTUATION = ';:,.!?¡¿—…"«»“”(){}[]';
 const PUNCTUATION_PATTERN = new RegExp(`(\\s*[${escapeRegExp(PUNCTUATION)}]+\\s*)+`, "g");
 
+const ZH_PATTERN = /[\u4e00-\u9fff]+/;
+const MIXED_PATTERN = new RegExp(`(\\s*[${escapeRegExp(PUNCTUATION)}]+\\s*|${ZH_PATTERN.source})`, "g");
+
 /**
  * Phonemize text using the eSpeak-NG phonemizer
  * @param {string} text The text to phonemize
- * @param {"a"|"b"} language The language to use
+ * @param {"a"|"b"|"z"} language The language to use
+ * @param {"1.0"|"1.1"} version The version of the Chinese phonemization style
  * @param {boolean} norm Whether to normalize the text
  * @returns {Promise<string>} The phonemized text
  */
-export async function phonemize(text, language = "a", norm = true) {
+export async function phonemize(text, language = "a", version = "1.0", norm = true) {
   // 1. Normalize text
   if (norm) {
     text = normalize_text(text);
   }
 
-  // 2. Split into chunks, to ensure we preserve punctuation
-  const sections = split(text, PUNCTUATION_PATTERN);
+  // 2. Split into chunks, to ensure we preserve punctuation and separate Chinese text if needed
+  const sections = split(text, language === "z" ? MIXED_PATTERN : PUNCTUATION_PATTERN);
 
   // 3. Convert each section to phonemes
   const lang = language === "a" ? "en-us" : "en";
-  const ps = (await Promise.all(sections.map(async ({ match, text }) => (match ? text : (await espeakng(text, lang)).join(" "))))).join("");
+  const processedSections = await Promise.all(sections.map(async ({ match, text }) => {
+    if (!match) {
+      return (await espeakng(text, lang)).join(" ");
+    }
+    if (ZH_PATTERN.test(text)) {
+      return version === "1.0" ? toIPA(text, { toneFormat: "arrow" }) : toZhuyin(text);
+    } else {
+      return text;
+    }
+  }));
+
+  const ps = processedSections.join("");
 
   // 4. Post-process phonemes
   let processed = ps
