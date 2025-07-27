@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sec-ant/readable-stream": "^0.6.0",
     "kokoro-js": "file:..",
     "motion": "^11.12.0",
     "react": "^18.3.1",
