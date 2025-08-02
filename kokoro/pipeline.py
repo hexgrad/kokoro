@@ -38,7 +38,7 @@ LANG_CODES = dict(
     # pip install misaki[zh]
     z='Mandarin Chinese',
     # pip install misaki[ko]
-    ko='Korean'
+    ko='ko'
 )
 
 class KPipeline:
