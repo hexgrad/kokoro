@@ -18,7 +18,7 @@ ALIASES = {
     'pt-br': 'p',
     'ja': 'j',
     'zh': 'z',
-    'ko': 'k'
+    'ko': 'ko'
 }
 
 LANG_CODES = dict(
@@ -35,11 +35,10 @@ LANG_CODES = dict(
 
     # pip install misaki[ja]
     j='Japanese',
-
     # pip install misaki[zh]
     z='Mandarin Chinese',
     # pip install misaki[ko]
-    k='ko'
+    ko='Korean'
 )
 
 class KPipeline:
