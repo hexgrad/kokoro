@@ -19,7 +19,7 @@ ALIASES = {
     'ja': 'j',
     'zh': 'z',
     'k': 'k'
-o}
+}
 
 LANG_CODES = dict(
     # pip install misaki[en]
