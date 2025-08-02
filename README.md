@@ -9,6 +9,9 @@ Misaki has support of [korean language](https://github.com/hexgrad/misaki/blob/m
 
 ```pip install git+https://github.com/DreadfulBot/kokoro.git```
 
+
+![](readme/ko.png)
+
 ---
 
 An inference library for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M). You can [`pip install kokoro`](https://pypi.org/project/kokoro/).
