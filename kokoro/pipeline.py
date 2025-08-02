@@ -18,7 +18,7 @@ ALIASES = {
     'pt-br': 'p',
     'ja': 'j',
     'zh': 'z',
-    'k': 'ko'
+    'ko': 'k'
 }
 
 LANG_CODES = dict(
