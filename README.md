@@ -1,5 +1,12 @@
 # kokoro
 
+# DreadfulBot improvements
+Misaki has support of [korean language](https://github.com/hexgrad/misaki/blob/main/misaki/ko.py), so `pipeline.py` was expanded to support new literal.
+
+```pip install misaki[ko]```
+
+---
+
 An inference library for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M). You can [`pip install kokoro`](https://pypi.org/project/kokoro/).
 
 > **Kokoro** is an open-weight TTS model with 82 million parameters. Despite its lightweight architecture, it delivers comparable quality to larger models while being significantly faster and more cost-efficient. With Apache-licensed weights, Kokoro can be deployed anywhere from production environments to personal projects.
