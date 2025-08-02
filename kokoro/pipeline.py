@@ -133,10 +133,7 @@ class KPipeline:
         elif lang_code == 'ko':
             try:
                 from misaki import ko
-                self.g2p = ko.KOG2P(
-                    version=None if repo_id.endswith('/Kokoro-82M') else '1.1',
-                    en_callable=en_callable
-                )
+                self.g2p = ko.KOG2P()
             except ImportError:
                 logger.error("You need to `pip install misaki[ko]` to use lang_code='ko'")
                 raise
