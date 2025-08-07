@@ -18,6 +18,7 @@ ALIASES = {
     'pt-br': 'p',
     'ja': 'j',
     'zh': 'z',
+    'ko': 'ko'
 }
 
 LANG_CODES = dict(
@@ -34,9 +35,10 @@ LANG_CODES = dict(
 
     # pip install misaki[ja]
     j='Japanese',
-
     # pip install misaki[zh]
     z='Mandarin Chinese',
+    # pip install misaki[ko]
+    ko='ko'
 )
 
 class KPipeline:
@@ -127,6 +129,13 @@ class KPipeline:
                 self.g2p = ja.JAG2P()
             except ImportError:
                 logger.error("You need to `pip install misaki[ja]` to use lang_code='j'")
+                raise
+        elif lang_code == 'ko':
+            try:
+                from misaki import ko
+                self.g2p = ko.KOG2P()
+            except ImportError:
+                logger.error("You need to `pip install misaki[ko]` to use lang_code='ko'")
                 raise
         elif lang_code == 'z':
             try:
