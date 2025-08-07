@@ -77,6 +77,14 @@ const B_TEST_CASES = new Map([
   ["X's mark", "ˈɛksɪz mˈɑːk"],
 ]);
 
+const Z_TEST_CASES = new Map([
+  ["中文, test", "ʈʂʊŋ→ wən↗, tˈɛst"],
+]);
+
+const Z_V2_TEST_CASES = new Map([
+  ["中文, test", "ㄓㄨㄥ1 ㄨㄣ2, tˈɛst"],
+]);
+
 describe("phonemize", () => {
   describe("en-us", () => {
     for (const [input, expected] of A_TEST_CASES) {
@@ -89,6 +97,20 @@ describe("phonemize", () => {
     for (const [input, expected] of B_TEST_CASES) {
       test(`phonemize("${input}")`, async () => {
         expect(await phonemize(input, "b")).toEqual(expected);
+      });
+    }
+  });
+  describe("zh v1", () => {
+    for (const [input, expected] of Z_TEST_CASES) {
+      test(`phonemize("${input}")`, async () => {
+        expect(await phonemize(input, "z", "1.0")).toEqual(expected);
+      });
+    }
+  });
+  describe("zh v2", () => {
+    for (const [input, expected] of Z_V2_TEST_CASES) {
+      test(`phonemize("${input}")`, async () => {
+        expect(await phonemize(input, "z", "1.1")).toEqual(expected);
       });
     }
   });
