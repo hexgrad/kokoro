@@ -1,3 +1,4 @@
+import "@sec-ant/readable-stream/polyfill/asyncIterator";
 import { KokoroTTS } from "kokoro-js";
 import { detectWebGPU } from "./utils.js";
 
