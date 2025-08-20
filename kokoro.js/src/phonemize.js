@@ -1,5 +1,5 @@
 import { phonemize as espeakng } from "phonemizer";
-import { toZhuyin, toIPA } from "phonemize";
+import { toZhuyin, toIPA } from "phonemize/zh";
 
 /**
  * Helper function to split a string on a regex, but keep the delimiters.
