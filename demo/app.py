@@ -156,7 +156,7 @@ with gr.Blocks() as app:
             with gr.Row():
                 voice = gr.Dropdown(list(CHOICES.items()), value='af_heart', label='Voice', info='Quality and availability vary by language')
                 use_gpu = gr.Dropdown(
-                    [('ZeroGPU 🚀', True), ('CPU 🐌', False)],
+                    [('CPU 🐌', False), ('ZeroGPU 🚀', True)],
                     value=CUDA_AVAILABLE,
                     label='Hardware',
                     info='GPU is usually faster, but has a usage quota',
