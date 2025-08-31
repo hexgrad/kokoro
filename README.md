@@ -33,7 +33,7 @@ You can run this advanced cell on [Google Colab](https://colab.research.google.c
 # 2️⃣ Install espeak, used for English OOD fallback and some non-English languages
 !apt-get -qq -y install espeak-ng > /dev/null 2>&1
 
-# 3️⃣ Initalize a pipeline
+# 3️⃣ Initialize a pipeline
 from kokoro import KPipeline
 from IPython.display import display, Audio
 import soundfile as sf

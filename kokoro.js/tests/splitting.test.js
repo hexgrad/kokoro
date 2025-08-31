@@ -423,8 +423,8 @@ TESTS.push(
   },
   {
     name: "Surprise sentence should not split",
-    input: "What a suprise?!",
-    target: ["What a suprise?!"],
+    input: "What a surprise?!",
+    target: ["What a surprise?!"],
   },
   {
     name: "Ellipsis should not split",
