@@ -34,8 +34,7 @@
   "license": "Apache-2.0",
   "description": "High-quality text-to-speech for the web",
   "dependencies": {
-    "@huggingface/transformers": "^3.5.1",
-    "phonemizer": "^1.2.1"
+    "@huggingface/transformers": "^3.5.1"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^16.0.0",

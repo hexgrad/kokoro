@@ -1,4 +1,4 @@
-import { phonemize as espeakng } from "phonemizer";
+import { phonemize as espeakng } from "./espeakng/phonemizer.js";
 
 /**
  * Helper function to split a string on a regex, but keep the delimiters.
@@ -167,7 +167,7 @@ const PUNCTUATION_PATTERN = new RegExp(`(\\s*[${escapeRegExp(PUNCTUATION)}]+\\s*
 /**
  * Phonemize text using the eSpeak-NG phonemizer
  * @param {string} text The text to phonemize
- * @param {"a"|"b"} language The language to use
+ * @param {"a"|"b"|"i"} language The language to use
  * @param {boolean} norm Whether to normalize the text
  * @returns {Promise<string>} The phonemized text
  */
@@ -181,7 +181,7 @@ export async function phonemize(text, language = "a", norm = true) {
   const sections = split(text, PUNCTUATION_PATTERN);
 
   // 3. Convert each section to phonemes
-  const lang = language === "a" ? "en-us" : "en";
+  const lang = getLocale(language);
   const ps = (await Promise.all(sections.map(async ({ match, text }) => (match ? text : (await espeakng(text, lang)).join(" "))))).join("");
 
   // 4. Post-process phonemes
@@ -201,4 +201,20 @@ export async function phonemize(text, language = "a", norm = true) {
     processed = processed.replace(/(?<=nˈaɪn)ti(?!ː)/g, "di");
   }
   return processed.trim();
+}
+
+/**
+ * Get the locale for a particular language prefix
+ *
+ * @param {"a"|"b"|"i"} language The language for which to get the locale of
+ */
+function getLocale(language) {
+  switch (language) {
+    case "a":
+      return "en-us";
+    case "b":
+      return "en";
+    case "i":
+      return "it";
+  }
 }

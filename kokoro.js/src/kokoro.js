@@ -54,13 +54,18 @@ export class KokoroTTS {
     console.table(VOICES);
   }
 
+  /**
+   * Validate input voice against supported voices
+   *
+   * @param {string} voice The voice to validate
+   */
   _validate_voice(voice) {
     if (!VOICES.hasOwnProperty(voice)) {
       console.error(`Voice "${voice}" not found. Available voices:`);
       console.table(VOICES);
       throw new Error(`Voice "${voice}" not found. Should be one of: ${Object.keys(VOICES).join(", ")}.`);
     }
-    const language = /** @type {"a"|"b"} */ (voice.at(0)); // "a" or "b"
+    const language = /** @type {"a"|"b"|"i"} */ (voice.at(0));
     return language;
   }
 
@@ -126,9 +131,9 @@ export class KokoroTTS {
       splitter = new TextSplitterStream();
       const chunks = split_pattern
         ? text
-          .split(split_pattern)
-          .map((chunk) => chunk.trim())
-          .filter((chunk) => chunk.length > 0)
+            .split(split_pattern)
+            .map((chunk) => chunk.trim())
+            .filter((chunk) => chunk.length > 0)
         : [text];
       splitter.push(...chunks);
     } else {
@@ -151,10 +156,10 @@ export class KokoroTTS {
 
 export const env = {
   set cacheDir(value) {
-    hf.cacheDir = value
+    hf.cacheDir = value;
   },
   get cacheDir() {
-    return hf.cacheDir
+    return hf.cacheDir;
   },
   set wasmPaths(value) {
     hf.backends.onnx.wasm.wasmPaths = value;

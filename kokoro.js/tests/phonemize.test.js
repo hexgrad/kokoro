@@ -26,13 +26,13 @@ const A_TEST_CASES = new Map([
   ["Yeah", "jˈɛə"],
   ["yeah", "jˈɛə"],
   ["1990", "nˈaɪntiːn nˈaɪndi"],
-  ["12:34", "twˈɛlv θˈɜːɾi fˈoːɹ"],
+  ["12:34", "twˈɛlv θˈɜːɾi fˈɔːɹ"],
   ["2022s", "twˈɛnti twˈɛnti tˈuːz"],
   ["1,000", "wˈʌn θˈaʊzənd"],
-  ["12,345,678", "twˈɛlv mˈɪliən θɹˈiː hˈʌndɹɪd fˈoːɹɾi fˈaɪv θˈaʊzənd sˈɪks hˈʌndɹɪd sˈɛvənti ˈeɪt"],
+  ["12,345,678", "twˈɛlv mˈɪliən θɹˈiː hˈʌndɹɪd fˈɔːɹɾi fˈaɪv θˈaʊzənd sˈɪks hˈʌndɹɪd sˈɛvənti ˈeɪt"],
   ["$100", "wˈʌn hˈʌndɹɪd dˈɑːlɚz"],
   ["£1.50", "wˈʌn pˈaʊnd ænd fˈɪfti pˈɛns"],
-  ["12.34", "twˈɛlv pˈɔɪnt θɹˈiː fˈoːɹ"],
+  ["12.34", "twˈɛlv pˈɔɪnt θɹˈiː fˈɔːɹ"],
   ["0.01", "zˈiəɹoʊ pˈɔɪnt zˈiəɹoʊ wˈʌn"],
   ["10-20", "tˈɛn tə twˈɛnti"],
   ["5-10", "fˈaɪv tə tˈɛn"],
@@ -77,6 +77,8 @@ const B_TEST_CASES = new Map([
   ["X's mark", "ˈɛksɪz mˈɑːk"],
 ]);
 
+const I_TEST_CASES = new Map([["Ma la volpe col suo balzo ha raggiunto il quieto Fido", "ma la vˈolpe kol sˌʊo bˈaltso a ɹadʒːˈunto il kwjˈɛto fˈido"]]);
+
 describe("phonemize", () => {
   describe("en-us", () => {
     for (const [input, expected] of A_TEST_CASES) {
@@ -89,6 +91,13 @@ describe("phonemize", () => {
     for (const [input, expected] of B_TEST_CASES) {
       test(`phonemize("${input}")`, async () => {
         expect(await phonemize(input, "b")).toEqual(expected);
+      });
+    }
+  });
+  describe("it", () => {
+    for (const [input, expected] of I_TEST_CASES) {
+      test(`phonemize("${input}")`, async () => {
+        expect(await phonemize(input, "i")).toEqual(expected);
       });
     }
   });
