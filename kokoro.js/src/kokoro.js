@@ -131,6 +131,9 @@ export class KokoroTTS {
           .filter((chunk) => chunk.length > 0)
         : [text];
       splitter.push(...chunks);
+      // Close the stream to signal no more input is coming
+      // This fixes a bug where the async iterator would hang waiting for more input
+      splitter.close();
     } else {
       throw new Error("Invalid input type. Expected string or TextSplitterStream.");
     }
