@@ -66,6 +66,23 @@ function concatAudio(audios) {
 }
 
 /**
+ * Split text into stream chunks using the optional split pattern.
+ * @param {string} text
+ * @param {RegExp|null} split_pattern
+ * @returns {string[]}
+ */
+function splitTextIntoChunks(text, split_pattern) {
+  if (!split_pattern) {
+    return [text];
+  }
+
+  return text
+    .split(split_pattern)
+    .map((chunk) => chunk.trim())
+    .filter((chunk) => chunk.length > 0);
+}
+
+/**
  * @typedef {Object} GenerateOptions
  * @property {keyof typeof VOICES} [voice="af_heart"] The voice
  * @property {number} [speed=1] The speaking speed
@@ -203,7 +220,7 @@ export class KokoroTTS {
         }
         // Process each text segment through the normal sentence-splitting path.
         const splitter = new TextSplitterStream();
-        splitter.push(seg.value);
+        splitter.push(...splitTextIntoChunks(seg.value, split_pattern));
         splitter.close();
         for await (const sentence of splitter) {
           const phonemes = await phonemize(sentence, language);
@@ -221,13 +238,7 @@ export class KokoroTTS {
       splitter = text;
     } else if (typeof text === "string") {
       splitter = new TextSplitterStream();
-      const chunks = split_pattern
-        ? text
-          .split(split_pattern)
-          .map((chunk) => chunk.trim())
-          .filter((chunk) => chunk.length > 0)
-        : [text];
-      splitter.push(...chunks);
+      splitter.push(...splitTextIntoChunks(text, split_pattern));
     } else {
       throw new Error("Invalid input type. Expected string or TextSplitterStream.");
     }
