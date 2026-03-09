@@ -2,6 +2,7 @@ import { env as hf, StyleTextToSpeech2Model, AutoTokenizer, Tensor, RawAudio } f
 import { phonemize } from "./phonemize.js";
 import { TextSplitterStream } from "./splitter.js";
 import { getVoiceData, VOICES } from "./voices.js";
+import { hasSSML, splitAtBreaks } from "./ssml.js";
 
 const STYLE_DIM = 256;
 const SAMPLE_RATE = 24000;
@@ -132,6 +133,21 @@ export class KokoroTTS {
   async generate(text, { voice = "af_heart", speed = 1 } = {}) {
     const language = this._validate_voice(voice);
 
+    // If the text contains <break> tags, split into text/silence segments,
+    // generate each independently, and concatenate with cross-fades.
+    if (hasSSML(text) && text.includes("<break")) {
+      const segments = splitAtBreaks(text);
+      const audios = await Promise.all(
+        segments.map(async (seg) => {
+          if (seg.type === "break") return generateSilence(seg.ms);
+          const phonemes = await phonemize(seg.value, language);
+          const { input_ids } = this.tokenizer(phonemes, { truncation: true });
+          return this.generate_from_ids(input_ids, { voice, speed });
+        }),
+      );
+      return concatAudio(audios);
+    }
+
     const phonemes = await phonemize(text, language);
     const { input_ids } = this.tokenizer(phonemes, {
       truncation: true,
@@ -175,6 +191,29 @@ export class KokoroTTS {
    */
   async *stream(text, { voice = "af_heart", speed = 1, split_pattern = null } = {}) {
     const language = this._validate_voice(voice);
+
+    // If the input is a plain string containing <break> tags, extract breaks
+    // first and interleave silence segments with the sentence stream.
+    if (typeof text === "string" && hasSSML(text) && text.includes("<break")) {
+      const topSegments = splitAtBreaks(text);
+      for (const seg of topSegments) {
+        if (seg.type === "break") {
+          yield { text: "", phonemes: "", audio: generateSilence(seg.ms) };
+          continue;
+        }
+        // Process each text segment through the normal sentence-splitting path.
+        const splitter = new TextSplitterStream();
+        splitter.push(seg.value);
+        splitter.close();
+        for await (const sentence of splitter) {
+          const phonemes = await phonemize(sentence, language);
+          const { input_ids } = this.tokenizer(phonemes, { truncation: true });
+          const audio = await this.generate_from_ids(input_ids, { voice, speed });
+          yield { text: sentence, phonemes, audio };
+        }
+      }
+      return;
+    }
 
     /** @type {TextSplitterStream} */
     let splitter;

@@ -1,6 +1,9 @@
 import { describe, test, expect } from "vitest";
 import { hasSSML, parseSSML, parseBreakMs, splitAtBreaks } from "../src/ssml.js";
 import { phonemize } from "../src/phonemize.js";
+// generateSilence and concatAudio are module-private; test them via their
+// observable effects through the exported parseBreakMs + SAMPLE_RATE math.
+const SAMPLE_RATE = 24000;
 
 // ─── hasSSML ─────────────────────────────────────────────────────────────────
 
@@ -247,5 +250,25 @@ describe("phonemize with SSML", () => {
     const result = await phonemize('The <sub alias="World Wide Web Consortium">W3C</sub> and <phoneme alphabet="ipa" ph="ˈɛskjuːˈɛl">SQL</phoneme>.');
     expect(result).toMatch(/wˈɜːld/); // from "World"
     expect(result).toContain("ˈɛskjuːˈɛl"); // injected IPA
+  });
+});
+
+// ─── generateSilence / concatAudio (via parseBreakMs) ─────────────────────────
+
+describe("break time parsing and silence sizing", () => {
+  test("500ms → 12 000 samples at 24 kHz", () => {
+    expect(Math.round(SAMPLE_RATE * parseBreakMs("500ms") / 1000)).toBe(12000);
+  });
+
+  test("1s → 24 000 samples at 24 kHz", () => {
+    expect(Math.round(SAMPLE_RATE * parseBreakMs("1s") / 1000)).toBe(24000);
+  });
+
+  test("1.5s → 36 000 samples at 24 kHz", () => {
+    expect(Math.round(SAMPLE_RATE * parseBreakMs("1.5s") / 1000)).toBe(36000);
+  });
+
+  test("0ms → 0 samples", () => {
+    expect(Math.round(SAMPLE_RATE * parseBreakMs("0ms") / 1000)).toBe(0);
   });
 });
