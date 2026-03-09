@@ -14,6 +14,22 @@
  *   <break time="500ms"/> / <break time="1.5s"/>
  *   <sub alias="...">text</sub>
  *   <say-as interpret-as="characters|number|ordinal">text</say-as>
+ *
+ * IPA format note:
+ *   The `ph` attribute of `<phoneme>` must use **eSpeak IPA notation**, which
+ *   differs from standard (broad) IPA in several important ways:
+ *
+ *   1. Stress marks go before the stressed **vowel**, not the syllable onset.
+ *      - ✅ eSpeak: wˈɜːld  (ˈ immediately before the vowel ɜ)
+ *      - ❌ Standard: ˈwɜːld (ˈ before the consonant onset w)
+ *      Placing ˈ before a consonant causes the model to vocalize it as a
+ *      separate phoneme (often heard as an "ah" sound) rather than as stress.
+ *
+ *   2. The English rhotic is ɹ, not r.
+ *      - ✅ eSpeak: ɹɪd  ❌ Standard: rɪd
+ *
+ *   To find the correct eSpeak IPA for any word, run:
+ *      espeak-ng --ipa -q -v en-us "word"
  */
 
 /**
@@ -102,6 +118,7 @@ export function parseSSML(text) {
     switch (tagName.toLowerCase()) {
       case "phoneme": {
         // Requires alphabet="ipa" and ph="..." — anything else falls through as text.
+        // The ph value must use eSpeak IPA notation (see module-level comment).
         if (attrs["alphabet"]?.toLowerCase() === "ipa" && attrs["ph"]) {
           segments.push({ type: "phoneme", text: content, ipa: attrs["ph"] });
         } else {

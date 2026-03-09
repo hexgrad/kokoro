@@ -228,7 +228,10 @@ function expandOrdinal(text) {
 /**
  * Phonemize an SSML string by processing each parsed segment individually.
  * - text segments: normalize then run eSpeak
- * - phoneme segments: inject ipa value directly, bypassing G2P
+ * - phoneme segments: inject the `ph` value directly, bypassing G2P.
+ *   The value MUST be in eSpeak IPA notation — stress marks (ˈ ˌ) must appear
+ *   immediately before the stressed vowel, not before the syllable onset.
+ *   Example: wˈɜːld ✅  ˈwɜːld ❌ (the latter vocalizes ˈ as a sound).
  * - sub segments: normalize the alias then run eSpeak
  * - say-as segments: expand then normalize then run eSpeak
  * normalize_text is called explicitly per-segment so it never runs twice on
