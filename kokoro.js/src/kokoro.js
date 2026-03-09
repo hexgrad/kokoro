@@ -5,6 +5,64 @@ import { getVoiceData, VOICES } from "./voices.js";
 
 const STYLE_DIM = 256;
 const SAMPLE_RATE = 24000;
+const XFADE_LEN = Math.round(SAMPLE_RATE * 0.008); // 8 ms linear cross-fade
+
+/**
+ * Generate a silent audio segment.
+ * @param {number} durationMs Duration in milliseconds
+ * @returns {RawAudio}
+ */
+function generateSilence(durationMs) {
+  const numSamples = Math.round((SAMPLE_RATE * durationMs) / 1000);
+  return new RawAudio(new Float32Array(numSamples), SAMPLE_RATE);
+}
+
+/**
+ * Concatenate multiple RawAudio segments with a short linear cross-fade at each boundary
+ * to prevent clicks or pops at splice points.
+ * @param {RawAudio[]} audios
+ * @returns {RawAudio}
+ */
+function concatAudio(audios) {
+  if (audios.length === 0) return new RawAudio(new Float32Array(0), SAMPLE_RATE);
+  if (audios.length === 1) return new RawAudio(audios[0].audio.slice(), SAMPLE_RATE);
+
+  // Clamp cross-fade length to half the shortest segment so it never exceeds any segment.
+  const xLen = Math.min(XFADE_LEN, ...audios.map((a) => Math.floor(a.audio.length / 2)));
+  const totalLen = audios.reduce((s, a) => s + a.audio.length, 0) - xLen * (audios.length - 1);
+  const out = new Float32Array(totalLen);
+
+  let pos = 0;
+  for (let i = 0; i < audios.length; i++) {
+    const seg = audios[i].audio;
+    const isFirst = i === 0;
+    const isLast = i === audios.length - 1;
+
+    // Blend this segment's fade-in into the fade-out region already written by the previous segment.
+    if (!isFirst) {
+      for (let j = 0; j < xLen; j++) {
+        out[pos + j] += seg[j] * (j / xLen);
+      }
+      pos += xLen;
+    }
+
+    // Copy the flat (non-overlapping) middle portion of this segment.
+    const flatStart = isFirst ? 0 : xLen;
+    const flatEnd = isLast ? seg.length : seg.length - xLen;
+    out.set(seg.subarray(flatStart, flatEnd), pos);
+    pos += flatEnd - flatStart;
+
+    // Write a fade-out tail; the next segment's fade-in will be added on top.
+    if (!isLast) {
+      for (let j = 0; j < xLen; j++) {
+        out[pos + j] = seg[seg.length - xLen + j] * (1 - j / xLen);
+      }
+      // pos is intentionally NOT advanced here — the next iteration's fade-in writes to the same region.
+    }
+  }
+
+  return new RawAudio(out, SAMPLE_RATE);
+}
 
 /**
  * @typedef {Object} GenerateOptions
