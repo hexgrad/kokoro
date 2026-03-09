@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { phonemize } from "../src/phonemize.js";
+import { phonemize, normalize_text } from "../src/phonemize.js";
 
 const A_TEST_CASES = new Map([
   ["‘Hello’", "həlˈoʊ"],
@@ -76,6 +76,44 @@ const B_TEST_CASES = new Map([
   ["Cat's tail", "kˈats tˈeɪl"],
   ["X's mark", "ˈɛksɪz mˈɑːk"],
 ]);
+
+describe("normalize_text", () => {
+  // Quotes and brackets
+  test("smart single quotes → straight", () => expect(normalize_text("\u2018Hello\u2019")).toBe("'Hello'"));
+  test("double curly quotes → straight", () => expect(normalize_text("\u201cHello\u201d")).toBe('"Hello"'));
+  test("parentheses → angle-quote brackets", () => expect(normalize_text("(Hello)")).toBe("«Hello»"));
+
+  // Whitespace
+  test("multiple spaces collapsed", () => expect(normalize_text("Hello   World")).toBe("Hello World"));
+  test("tabs → single space", () => expect(normalize_text("Hello\tWorld")).toBe("Hello World"));
+
+  // Abbreviations
+  test("Dr. before capital → Doctor", () => expect(normalize_text("Dr. Smith")).toBe("Doctor Smith"));
+  test("Mr. → Mister", () => expect(normalize_text("Mr. Smith")).toBe("Mister Smith"));
+  test("Ms. → Miss", () => expect(normalize_text("Ms. Taylor")).toBe("Miss Taylor"));
+  test("Mrs. → Mrs", () => expect(normalize_text("Mrs. Johnson")).toBe("Mrs Johnson"));
+  test("etc. mid-sentence → etc", () => expect(normalize_text("apples, etc. Pears")).toBe("apples, etc. Pears"));
+  test("etc. end → etc", () => expect(normalize_text("apples, etc.")).toBe("apples, etc"));
+
+  // Numbers
+  test("year 1990 → split", () => expect(normalize_text("1990")).toBe("19 90"));
+  test("time 12:34 → split", () => expect(normalize_text("12:34")).toBe("12 34"));
+  test("thousands separator removed", () => expect(normalize_text("1,000")).toBe("1000"));
+  test("decimal → point form", () => expect(normalize_text("12.34")).toBe("12 point 3 4"));
+  test("number range → 'to'", () => expect(normalize_text("10-20")).toBe("10 to 20"));
+
+  // Currency
+  test("$100 → dollar form", () => expect(normalize_text("$100")).toBe("100 dollars"));
+  test("£1.50 → pound form", () => expect(normalize_text("£1.50")).toBe("1 pound and 50 pence"));
+
+  // Possessives — the rule uppercases 's' only when preceded by an uppercase consonant
+  test("uppercase consonant possessive → uppercase S", () => expect(normalize_text("CAT's tail")).toBe("CAT'S tail"));
+  test("lowercase consonant possessive unchanged", () => expect(normalize_text("Cat's tail")).toBe("Cat's tail"));
+
+  // Hyphenated initials
+  test("A.B.C → A-B-C", () => expect(normalize_text("A.B.C")).toBe("A-B-C"));
+  test("U.S.A. keeps trailing dot", () => expect(normalize_text("U.S.A.")).toBe("U-S-A."));
+});
 
 describe("phonemize", () => {
   describe("en-us", () => {

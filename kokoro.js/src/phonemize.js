@@ -95,7 +95,7 @@ function point_num(match) {
  * @param {string} text The text to normalize
  * @returns {string} The normalized text
  */
-function normalize_text(text) {
+export function normalize_text(text) {
   return (
     text
       // 1. Handle quotes and brackets
