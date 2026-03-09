@@ -1,5 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { hasSSML, parseSSML, parseBreakMs, splitAtBreaks } from "../src/ssml.js";
+import { phonemize } from "../src/phonemize.js";
 
 // ─── hasSSML ─────────────────────────────────────────────────────────────────
 
@@ -172,5 +173,79 @@ describe("splitAtBreaks", () => {
       { type: "break", ms: 100 },
       { type: "break", ms: 200 },
     ]);
+  });
+});
+
+// ─── phonemize() with SSML tags ───────────────────────────────────────────────
+
+describe("phonemize with SSML", () => {
+  // Fast path: plain text is unchanged relative to calling phonemize without SSML.
+  test("plain text fast-path is unaffected", async () => {
+    expect(await phonemize("Hello World")).toEqual("həlˈoʊ wˈɜːld");
+  });
+
+  // <phoneme> — IPA injected directly, G2P bypassed.
+  test("<phoneme> injects IPA for tagged word", async () => {
+    const result = await phonemize('Hello <phoneme alphabet="ipa" ph="wɜːld">world</phoneme>!');
+    expect(result).toContain("wɜːld");
+    expect(result).toMatch(/həlˈoʊ/);
+  });
+
+  test("<phoneme> without ipa alphabet falls back to plain text synthesis", async () => {
+    // No throw — "world" is phonemized normally.
+    const result = await phonemize('<phoneme alphabet="x-sampa" ph="wE:ld">world</phoneme>');
+    expect(result).toMatch(/wˈɜːld/);
+  });
+
+  // <sub> — alias replaces display text.
+  test("<sub> synthesizes alias instead of display text", async () => {
+    const abbrev = await phonemize("W3C");
+    const expanded = await phonemize("World Wide Web Consortium");
+    const sub = await phonemize('<sub alias="World Wide Web Consortium">W3C</sub>');
+    expect(sub).toEqual(expanded);
+    expect(sub).not.toEqual(abbrev);
+  });
+
+  // <say-as interpret-as="characters">
+  test("<say-as characters> reads each letter individually", async () => {
+    // "SQL" as characters should produce phonemes for S, Q, L separately.
+    // Plain "SQL" would be read as "sequel" by eSpeak.
+    const chars = await phonemize('<say-as interpret-as="characters">SQL</say-as>');
+    const plain = await phonemize("SQL");
+    expect(chars).not.toEqual(plain);
+    // Individual letter names should appear: ɛs (S), kjuː (Q), ɛl (L)
+    expect(chars).toMatch(/ˈɛs/);
+  });
+
+  // <say-as interpret-as="ordinal">
+  test("<say-as ordinal> 1 → 'first'", async () => {
+    const result = await phonemize('<say-as interpret-as="ordinal">1</say-as>');
+    expect(result).toMatch(/fˈɜːst/);
+  });
+
+  test("<say-as ordinal> 42 → '42nd'", async () => {
+    const result = await phonemize('<say-as interpret-as="ordinal">42</say-as>');
+    const fortySecond = await phonemize("42nd");
+    expect(result).toEqual(fortySecond);
+  });
+
+  test("<say-as ordinal> 11 → '11th' (not '11st')", async () => {
+    const result = await phonemize('<say-as interpret-as="ordinal">11</say-as>');
+    const eleventhExpected = await phonemize("11th");
+    expect(result).toEqual(eleventhExpected);
+  });
+
+  // <say-as interpret-as="number">
+  test("<say-as number> behaves like plain number", async () => {
+    const ssml = await phonemize('<say-as interpret-as="number">1990</say-as>');
+    const plain = await phonemize("1990");
+    expect(ssml).toEqual(plain);
+  });
+
+  // Mixed
+  test("mixed tags in one sentence", async () => {
+    const result = await phonemize('The <sub alias="World Wide Web Consortium">W3C</sub> and <phoneme alphabet="ipa" ph="ˈɛskjuːˈɛl">SQL</phoneme>.');
+    expect(result).toMatch(/wˈɜːld/); // from "World"
+    expect(result).toContain("ˈɛskjuːˈɛl"); // injected IPA
   });
 });
