@@ -26,13 +26,13 @@ const A_TEST_CASES = new Map([
   ["Yeah", "jˈɛə"],
   ["yeah", "jˈɛə"],
   ["1990", "nˈaɪntiːn nˈaɪndi"],
-  ["12:34", "twˈɛlv θˈɜːɾi fˈoːɹ"],
+  ["12:34", "twˈɛlv θˈɜːɾi fˈɔːɹ"],
   ["2022s", "twˈɛnti twˈɛnti tˈuːz"],
   ["1,000", "wˈʌn θˈaʊzənd"],
-  ["12,345,678", "twˈɛlv mˈɪliən θɹˈiː hˈʌndɹɪd fˈoːɹɾi fˈaɪv θˈaʊzənd sˈɪks hˈʌndɹɪd sˈɛvənti ˈeɪt"],
+  ["12,345,678", "twˈɛlv mˈɪliən θɹˈiː hˈʌndɹɪd fˈɔːɹɾi fˈaɪv θˈaʊzənd sˈɪks hˈʌndɹɪd sˈɛvənti ˈeɪt"],
   ["$100", "wˈʌn hˈʌndɹɪd dˈɑːlɚz"],
   ["£1.50", "wˈʌn pˈaʊnd ænd fˈɪfti pˈɛns"],
-  ["12.34", "twˈɛlv pˈɔɪnt θɹˈiː fˈoːɹ"],
+  ["12.34", "twˈɛlv pˈɔɪnt θɹˈiː fˈɔːɹ"],
   ["0.01", "zˈiəɹoʊ pˈɔɪnt zˈiəɹoʊ wˈʌn"],
   ["10-20", "tˈɛn tə twˈɛnti"],
   ["5-10", "fˈaɪv tə tˈɛn"],
@@ -77,6 +77,41 @@ const B_TEST_CASES = new Map([
   ["X's mark", "ˈɛksɪz mˈɑːk"],
 ]);
 
+// French test cases
+const F_TEST_CASES = new Map([
+  ["Bonjour le monde", expect.any(String)],
+]);
+
+// Spanish test cases
+const E_TEST_CASES = new Map([
+  ["Hola mundo", expect.any(String)],
+]);
+
+// Japanese test cases
+const J_TEST_CASES = new Map([
+  ["こんにちは", expect.any(String)],
+]);
+
+// Chinese (Mandarin) test cases
+const Z_TEST_CASES = new Map([
+  ["你好世界", expect.any(String)],
+]);
+
+// Hindi test cases
+const H_TEST_CASES = new Map([
+  ["नमस्ते दुनिया", expect.any(String)],
+]);
+
+// Italian test cases
+const I_TEST_CASES = new Map([
+  ["Ma la volpe col suo balzo ha raggiunto il quieto Fido", expect.any(String)],
+]);
+
+// Portuguese test cases
+const P_TEST_CASES = new Map([
+  ["Olá mundo", expect.any(String)],
+]);
+
 describe("phonemize", () => {
   describe("en-us", () => {
     for (const [input, expected] of A_TEST_CASES) {
@@ -89,6 +124,69 @@ describe("phonemize", () => {
     for (const [input, expected] of B_TEST_CASES) {
       test(`phonemize("${input}")`, async () => {
         expect(await phonemize(input, "b")).toEqual(expected);
+      });
+    }
+  });
+  describe("fr", () => {
+    for (const [input] of F_TEST_CASES) {
+      test(`phonemize("${input}", "f")`, async () => {
+        const result = await phonemize(input, "f");
+        expect(result).toBeTruthy();
+        expect(result.length).toBeGreaterThan(0);
+      });
+    }
+  });
+  describe("es", () => {
+    for (const [input] of E_TEST_CASES) {
+      test(`phonemize("${input}", "e")`, async () => {
+        const result = await phonemize(input, "e");
+        expect(result).toBeTruthy();
+        expect(result.length).toBeGreaterThan(0);
+      });
+    }
+  });
+  describe("ja", () => {
+    for (const [input] of J_TEST_CASES) {
+      test(`phonemize("${input}", "j")`, async () => {
+        const result = await phonemize(input, "j");
+        expect(result).toBeTruthy();
+        expect(result.length).toBeGreaterThan(0);
+      });
+    }
+  });
+  describe("zh", () => {
+    for (const [input] of Z_TEST_CASES) {
+      test(`phonemize("${input}", "z")`, async () => {
+        const result = await phonemize(input, "z");
+        expect(result).toBeTruthy();
+        expect(result.length).toBeGreaterThan(0);
+      });
+    }
+  });
+  describe("hi", () => {
+    for (const [input] of H_TEST_CASES) {
+      test(`phonemize("${input}", "h")`, async () => {
+        const result = await phonemize(input, "h");
+        expect(result).toBeTruthy();
+        expect(result.length).toBeGreaterThan(0);
+      });
+    }
+  });
+  describe("it", () => {
+    for (const [input] of I_TEST_CASES) {
+      test(`phonemize("${input}", "i")`, async () => {
+        const result = await phonemize(input, "i");
+        expect(result).toBeTruthy();
+        expect(result.length).toBeGreaterThan(0);
+      });
+    }
+  });
+  describe("pt-br", () => {
+    for (const [input] of P_TEST_CASES) {
+      test(`phonemize("${input}", "p")`, async () => {
+        const result = await phonemize(input, "p");
+        expect(result).toBeTruthy();
+        expect(result.length).toBeGreaterThan(0);
       });
     }
   });
