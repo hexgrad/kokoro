@@ -312,6 +312,22 @@ export const VOICES = Object.freeze({
   //   targetQuality: "C",
   //   overallGrade: "D",
   // },
+  // df_anna: {
+  //   name: "Anna",
+  //   language: "de",
+  //   gender: "Female",
+  //   traits: "🚺",
+  //   targetQuality: "C",
+  //   overallGrade: "D",
+  // },
+  // dm_hans: {
+  //   name: "Hans",
+  //   language: "de",
+  //   gender: "Male",
+  //   traits: "🚹",
+  //   targetQuality: "C",
+  //   overallGrade: "D",
+  // },
   // ef_dora: {
   //   name: "dora",
   //   language: "es",
