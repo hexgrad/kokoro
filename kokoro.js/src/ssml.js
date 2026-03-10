@@ -58,7 +58,7 @@ export function hasSSML(text) {
  * @returns {Record<string, string>}
  */
 function parseAttrs(attrStr) {
-  const attrs = {};
+  const attrs = /** @type {Record<string, string>} */ ({});
   const re = /(\w[\w-]*)=(?:"([^"]*)"|'([^']*)')/g;
   let m;
   while ((m = re.exec(attrStr)) !== null) {
