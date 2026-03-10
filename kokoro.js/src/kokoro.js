@@ -2,9 +2,85 @@ import { env as hf, StyleTextToSpeech2Model, AutoTokenizer, Tensor, RawAudio } f
 import { phonemize } from "./phonemize.js";
 import { TextSplitterStream } from "./splitter.js";
 import { getVoiceData, VOICES } from "./voices.js";
+import { hasSSML, splitAtBreaks } from "./ssml.js";
 
 const STYLE_DIM = 256;
 const SAMPLE_RATE = 24000;
+const XFADE_LEN = Math.round(SAMPLE_RATE * 0.008); // 8 ms linear cross-fade
+
+/**
+ * Generate a silent audio segment.
+ * @param {number} durationMs Duration in milliseconds
+ * @returns {RawAudio}
+ */
+function generateSilence(durationMs) {
+  const numSamples = Math.round((SAMPLE_RATE * durationMs) / 1000);
+  return new RawAudio(new Float32Array(numSamples), SAMPLE_RATE);
+}
+
+/**
+ * Concatenate multiple RawAudio segments with a short linear cross-fade at each boundary
+ * to prevent clicks or pops at splice points.
+ * @param {RawAudio[]} audios
+ * @returns {RawAudio}
+ */
+function concatAudio(audios) {
+  if (audios.length === 0) return new RawAudio(new Float32Array(0), SAMPLE_RATE);
+  if (audios.length === 1) return new RawAudio(audios[0].audio.slice(), SAMPLE_RATE);
+
+  // Clamp cross-fade length to half the shortest segment so it never exceeds any segment.
+  const xLen = Math.min(XFADE_LEN, ...audios.map((a) => Math.floor(a.audio.length / 2)));
+  const totalLen = audios.reduce((s, a) => s + a.audio.length, 0) - xLen * (audios.length - 1);
+  const out = new Float32Array(totalLen);
+
+  let pos = 0;
+  for (let i = 0; i < audios.length; i++) {
+    const seg = audios[i].audio;
+    const isFirst = i === 0;
+    const isLast = i === audios.length - 1;
+
+    // Blend this segment's fade-in into the fade-out region already written by the previous segment.
+    if (!isFirst) {
+      for (let j = 0; j < xLen; j++) {
+        out[pos + j] += seg[j] * (j / xLen);
+      }
+      pos += xLen;
+    }
+
+    // Copy the flat (non-overlapping) middle portion of this segment.
+    const flatStart = isFirst ? 0 : xLen;
+    const flatEnd = isLast ? seg.length : seg.length - xLen;
+    out.set(seg.subarray(flatStart, flatEnd), pos);
+    pos += flatEnd - flatStart;
+
+    // Write a fade-out tail; the next segment's fade-in will be added on top.
+    if (!isLast) {
+      for (let j = 0; j < xLen; j++) {
+        out[pos + j] = seg[seg.length - xLen + j] * (1 - j / xLen);
+      }
+      // pos is intentionally NOT advanced here — the next iteration's fade-in writes to the same region.
+    }
+  }
+
+  return new RawAudio(out, SAMPLE_RATE);
+}
+
+/**
+ * Split text into stream chunks using the optional split pattern.
+ * @param {string} text
+ * @param {RegExp|null} split_pattern
+ * @returns {string[]}
+ */
+function splitTextIntoChunks(text, split_pattern) {
+  if (!split_pattern) {
+    return [text];
+  }
+
+  return text
+    .split(split_pattern)
+    .map((chunk) => chunk.trim())
+    .filter((chunk) => chunk.length > 0);
+}
 
 /**
  * @typedef {Object} GenerateOptions
@@ -74,6 +150,21 @@ export class KokoroTTS {
   async generate(text, { voice = "af_heart", speed = 1 } = {}) {
     const language = this._validate_voice(voice);
 
+    // If the text contains <break> tags, split into text/silence segments,
+    // generate each independently, and concatenate with cross-fades.
+    if (hasSSML(text) && text.includes("<break")) {
+      const segments = splitAtBreaks(text);
+      const audios = await Promise.all(
+        segments.map(async (seg) => {
+          if (seg.type === "break") return generateSilence(seg.ms);
+          const phonemes = await phonemize(seg.value, language);
+          const { input_ids } = this.tokenizer(phonemes, { truncation: true });
+          return this.generate_from_ids(input_ids, { voice, speed });
+        }),
+      );
+      return concatAudio(audios);
+    }
+
     const phonemes = await phonemize(text, language);
     const { input_ids } = this.tokenizer(phonemes, {
       truncation: true,
@@ -118,19 +209,36 @@ export class KokoroTTS {
   async *stream(text, { voice = "af_heart", speed = 1, split_pattern = null } = {}) {
     const language = this._validate_voice(voice);
 
+    // If the input is a plain string containing <break> tags, extract breaks
+    // first and interleave silence segments with the sentence stream.
+    if (typeof text === "string" && hasSSML(text) && text.includes("<break")) {
+      const topSegments = splitAtBreaks(text);
+      for (const seg of topSegments) {
+        if (seg.type === "break") {
+          yield { text: "", phonemes: "", audio: generateSilence(seg.ms) };
+          continue;
+        }
+        // Process each text segment through the normal sentence-splitting path.
+        const splitter = new TextSplitterStream();
+        splitter.push(...splitTextIntoChunks(seg.value, split_pattern));
+        splitter.close();
+        for await (const sentence of splitter) {
+          const phonemes = await phonemize(sentence, language);
+          const { input_ids } = this.tokenizer(phonemes, { truncation: true });
+          const audio = await this.generate_from_ids(input_ids, { voice, speed });
+          yield { text: sentence, phonemes, audio };
+        }
+      }
+      return;
+    }
+
     /** @type {TextSplitterStream} */
     let splitter;
     if (text instanceof TextSplitterStream) {
       splitter = text;
     } else if (typeof text === "string") {
       splitter = new TextSplitterStream();
-      const chunks = split_pattern
-        ? text
-          .split(split_pattern)
-          .map((chunk) => chunk.trim())
-          .filter((chunk) => chunk.length > 0)
-        : [text];
-      splitter.push(...chunks);
+      splitter.push(...splitTextIntoChunks(text, split_pattern));
     } else {
       throw new Error("Invalid input type. Expected string or TextSplitterStream.");
     }

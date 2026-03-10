@@ -1,4 +1,5 @@
 import { phonemize as espeakng } from "phonemizer";
+import { hasSSML, parseSSML } from "./ssml.js";
 
 /**
  * Helper function to split a string on a regex, but keep the delimiters.
@@ -95,7 +96,7 @@ function point_num(match) {
  * @param {string} text The text to normalize
  * @returns {string} The normalized text
  */
-function normalize_text(text) {
+export function normalize_text(text) {
   return (
     text
       // 1. Handle quotes and brackets
@@ -165,6 +166,111 @@ const PUNCTUATION = ';:,.!?¡¿—…"«»“”(){}[]';
 const PUNCTUATION_PATTERN = new RegExp(`(\\s*[${escapeRegExp(PUNCTUATION)}]+\\s*)+`, "g");
 
 /**
+ * Run eSpeak-NG on a pre-normalized text string and apply standard post-processing.
+ * Used internally so that phonemizeSSML can call normalize_text once per sub-segment
+ * without going through the full phonemize() entry-point (which would normalize again).
+ * @param {string} text Already-normalized text
+ * @param {"a"|"b"} language
+ * @returns {Promise<string>} Phoneme string
+ */
+async function runEspeak(text, language) {
+  const lang = language === "a" ? "en-us" : "en";
+  const sections = split(text, PUNCTUATION_PATTERN);
+  const ps = (await Promise.all(sections.map(async ({ match, text }) => (match ? text : (await espeakng(text, lang)).join(" "))))).join("");
+
+  let processed = ps
+    // https://en.wiktionary.org/wiki/kokoro#English
+    .replace(/kəkˈoːɹoʊ/g, "kˈoʊkəɹoʊ")
+    .replace(/kəkˈɔːɹəʊ/g, "kˈəʊkəɹəʊ")
+    .replace(/ʲ/g, "j")
+    .replace(/r/g, "ɹ")
+    .replace(/x/g, "k")
+    .replace(/ɬ/g, "l")
+    .replace(/(?<=[a-zɹː])(?=hˈʌndɹɪd)/g, " ")
+    .replace(/ z(?=[;:,.!?¡¿—…"«»"" ]|$)/g, "z");
+
+  if (language === "a") {
+    processed = processed.replace(/(?<=nˈaɪn)ti(?!ː)/g, "di");
+  }
+  return processed;
+}
+
+/**
+ * Expand characters in a string to a dot-separated uppercase form suitable for
+ * letter-by-letter eSpeak phonemization. normalize_text step 7 converts dots
+ * between uppercase letters to hyphens (e.g. "S.Q.L." → "S-Q-L."), which
+ * eSpeak reads as individual letter names.
+ * @param {string} text
+ * @returns {string}
+ */
+function expandCharacters(text) {
+  return [...text.toUpperCase()].join(".") + ".";
+}
+
+/**
+ * Expand an integer string to its ordinal word or suffix form.
+ * Special irregular ordinals (first, second, …, twelfth) are returned as words;
+ * all others use the standard numeric-suffix form (e.g. "42nd", "11th").
+ * @param {string} text
+ * @returns {string}
+ */
+function expandOrdinal(text) {
+  const n = parseInt(text, 10);
+  if (isNaN(n)) return text;
+  const SPECIALS = { 1: "first", 2: "second", 3: "third", 5: "fifth", 8: "eighth", 9: "ninth", 12: "twelfth" };
+  if (SPECIALS[n]) return SPECIALS[n];
+  const mod100 = n % 100;
+  const mod10 = n % 10;
+  const suffix = mod100 >= 11 && mod100 <= 13 ? "th" : mod10 === 1 ? "st" : mod10 === 2 ? "nd" : mod10 === 3 ? "rd" : "th";
+  return `${n}${suffix}`;
+}
+
+/**
+ * Phonemize an SSML string by processing each parsed segment individually.
+ * - text segments: normalize then run eSpeak
+ * - phoneme segments: inject the `ph` value directly, bypassing G2P.
+ *   The value MUST be in eSpeak IPA notation — stress marks (ˈ ˌ) must appear
+ *   immediately before the stressed vowel, not before the syllable onset.
+ *   Example: wˈɜːld ✅  ˈwɜːld ❌ (the latter vocalizes ˈ as a sound).
+ * - sub segments: normalize the alias then run eSpeak
+ * - say-as segments: expand then normalize then run eSpeak
+ * normalize_text is called explicitly per-segment so it never runs twice on
+ * the same content (avoids double-normalization when phonemize() delegates here).
+ * @param {string} text Input text with SSML tags
+ * @param {"a"|"b"} language
+ * @returns {Promise<string>} Phoneme string
+ */
+async function phonemizeSSML(text, language) {
+  const segments = parseSSML(text);
+  const parts = await Promise.all(
+    segments.map(async (seg) => {
+      switch (seg.type) {
+        case "phoneme":
+          return seg.ipa;
+        case "sub":
+          return runEspeak(normalize_text(seg.alias), language);
+        case "say-as":
+          if (seg.interpretAs === "characters") {
+            return runEspeak(normalize_text(expandCharacters(seg.text)), language);
+          } else if (seg.interpretAs === "ordinal") {
+            return runEspeak(normalize_text(expandOrdinal(seg.text)), language);
+          } else {
+            // number: let normalize_text handle number expansion as-is
+            return runEspeak(normalize_text(seg.text), language);
+          }
+        case "break":
+          // Breaks are handled at the audio level in kokoro.js; skip here.
+          return "";
+        default:
+          return runEspeak(normalize_text(seg.value), language);
+      }
+    }),
+  );
+  return parts.join("").trim();
+}
+
+
+/**
  * Phonemize text using the eSpeak-NG phonemizer
  * @param {string} text The text to phonemize
  * @param {"a"|"b"} language The language to use
@@ -172,6 +278,11 @@ const PUNCTUATION_PATTERN = new RegExp(`(\\s*[${escapeRegExp(PUNCTUATION)}]+\\s*
  * @returns {Promise<string>} The phonemized text
  */
 export async function phonemize(text, language = "a", norm = true) {
+  // Delegate to the SSML-aware path when the input contains tags.
+  if (hasSSML(text)) {
+    return phonemizeSSML(text, language);
+  }
+
   // 1. Normalize text
   if (norm) {
     text = normalize_text(text);

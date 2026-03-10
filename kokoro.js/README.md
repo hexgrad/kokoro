@@ -75,6 +75,48 @@ splitter.close();
 // splitter.flush();
 ```
 
+## SSML
+
+`kokoro-js` supports a subset of [SSML](https://www.w3.org/TR/speech-synthesis11/) for precise pronunciation and pacing control. Tags are resolved as a pure pre-processing step — there is no overhead for plain-text inputs.
+
+### Supported tags
+
+| Tag | Purpose | Example |
+|-----|---------|---------|
+| `<phoneme>` | Inject exact pronunciation | `<phoneme alphabet="ipa" ph="wˈɜːld">world</phoneme>` |
+| `<break>` | Insert a timed silence | `<break time="500ms"/>` or `<break time="1.5s"/>` |
+| `<sub>` | Substitute spoken text | `<sub alias="World Wide Web Consortium">W3C</sub>` |
+| `<say-as interpret-as="characters">` | Spell out letter by letter | `<say-as interpret-as="characters">SQL</say-as>` |
+| `<say-as interpret-as="ordinal">` | Read as an ordinal number | `<say-as interpret-as="ordinal">3</say-as>` → "third" |
+| `<say-as interpret-as="number">` | Read as a cardinal number | `<say-as interpret-as="number">42</say-as>` → "forty-two" |
+
+Malformed or unknown tags degrade gracefully to plain-text synthesis — the library never throws on SSML input.
+
+### `<phoneme>` and eSpeak IPA notation
+
+The `ph` attribute accepts **eSpeak IPA notation**, which differs from standard (broad) IPA:
+
+**Stress marks** must be placed immediately before the stressed **vowel**, not before the syllable onset:
+
+```
+✅ eSpeak:  wˈɜːld   (ˈ directly before the vowel ɜ)
+❌ Standard: ˈwɜːld  (ˈ before the consonant onset w)
+```
+
+Placing `ˈ` before a consonant causes the model to vocalize it as a sound (often heard as "ah") rather than applying stress. This is the most common source of unexpected output when using `<phoneme>`.
+
+**English rhotic** is `ɹ`, not `r`:
+```
+✅ eSpeak:  ɹɪd
+❌ Standard: rɪd
+```
+
+To find the correct eSpeak IPA for any word, run:
+
+```bash
+espeak-ng --ipa -q -v en-us "word"
+```
+
 ## Voices/Samples
 
 > [!TIP]
