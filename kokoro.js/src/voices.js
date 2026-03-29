@@ -26,7 +26,6 @@ export const VOICES = Object.freeze({
   },
   af_bella: {
     name: "Bella",
-    language: "en-us",
     gender: "Female",
     traits: "🔥",
     targetQuality: "A",
@@ -207,6 +206,24 @@ export const VOICES = Object.freeze({
     overallGrade: "C",
   },
 
+  // German voices
+  de_female_1: {
+    name: "Lena",
+    language: "de-de",
+    gender: "Female",
+    traits: "🇩🇪",
+    targetQuality: "B",
+    overallGrade: "C+",
+  },
+  de_male_1: {
+    name: "Max",
+    language: "de-de",
+    gender: "Male",
+    traits: "🇩🇪",
+    targetQuality: "B",
+    overallGrade: "C+",
+  },
+
   // TODO: Add support for other languages:
   // jf_alpha: {
   //   name: "alpha",
@@ -305,203 +322,5 @@ export const VOICES = Object.freeze({
   //   overallGrade: "D",
   // },
   // zm_yunyang: {
-  //   name: "yunyang",
-  //   language: "zh",
-  //   gender: "Male",
-  //   traits: "🚹",
-  //   targetQuality: "C",
-  //   overallGrade: "D",
-  // },
-  // ef_dora: {
-  //   name: "dora",
-  //   language: "es",
-  //   gender: "Female",
-  //   traits: "🚺",
-  //   targetQuality: "C",
-  //   overallGrade: "D",
-  // },
-  // em_alex: {
-  //   name: "alex",
-  //   language: "es",
-  //   gender: "Male",
-  //   traits: "🚹",
-  //   targetQuality: "C",
-  //   overallGrade: "D",
-  // },
-  // em_santa: {
-  //   name: "santa",
-  //   language: "es",
-  //   gender: "Male",
-  //   traits: "🚹",
-  //   targetQuality: "C",
-  //   overallGrade: "D",
-  // },
-  // ff_siwis: {
-  //   name: "siwis",
-  //   language: "es",
-  //   gender: "Female",
-  //   traits: "🚺",
-  //   targetQuality: "B",
-  //   overallGrade: "B-",
-  // },
-  // hf_alpha: {
-  //   name: "alpha",
-  //   language: "hi",
-  //   gender: "Female",
-  //   traits: "🚺",
-  //   targetQuality: "B",
-  //   overallGrade: "C",
-  // },
-  // hf_beta: {
-  //   name: "beta",
-  //   language: "hi",
-  //   gender: "Female",
-  //   traits: "🚺",
-  //   targetQuality: "B",
-  //   overallGrade: "C",
-  // },
-  // hm_omega: {
-  //   name: "omega",
-  //   language: "hi",
-  //   gender: "Male",
-  //   traits: "🚹",
-  //   targetQuality: "B",
-  //   overallGrade: "C",
-  // },
-  // hm_psi: {
-  //   name: "psi",
-  //   language: "hi",
-  //   gender: "Male",
-  //   traits: "🚹",
-  //   targetQuality: "B",
-  //   overallGrade: "C",
-  // },
-  // if_sara: {
-  //   name: "sara",
-  //   language: "it",
-  //   gender: "Female",
-  //   traits: "🚺",
-  //   targetQuality: "B",
-  //   overallGrade: "C",
-  // },
-  // im_nicola: {
-  //   name: "nicola",
-  //   language: "it",
-  //   gender: "Male",
-  //   traits: "🚹",
-  //   targetQuality: "B",
-  //   overallGrade: "C",
-  // },
-  // pf_dora: {
-  //   name: "dora",
-  //   language: "pt-br",
-  //   gender: "Female",
-  //   traits: "🚺",
-  //   targetQuality: "C",
-  //   overallGrade: "D",
-  // },
-  // pm_alex: {
-  //   name: "alex",
-  //   language: "pt-br",
-  //   gender: "Male",
-  //   traits: "🚹",
-  //   targetQuality: "C",
-  //   overallGrade: "D",
-  // },
-  // pm_santa: {
-  //   name: "santa",
-  //   language: "pt-br",
-  //   gender: "Male",
-  //   traits: "🚹",
-  //   targetQuality: "C",
-  //   overallGrade: "D",
-  // },
+  //   la
 });
-
-
-/**
- * The base URL for fetching voice data files.
- */
-let voiceDataUrl = "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices";
-
-
-/**
- * Retrieves the current voice data URL.
- * 
- * @returns The current voice data URL.
- */
-export function getVoiceDataUrl() {
-  return voiceDataUrl;
-};
-
-/**
- * Sets a new voice data URL.
- * 
- * @param url - The new URL to set for voice data.
- * @throws Will throw an error if the URL is not a valid non-empty string.
- */
-export function setVoiceDataUrl(url) {
-  if (typeof url === 'string' && url.trim() !== '') {
-    voiceDataUrl = url;
-  } else {
-    throw new Error("Invalid URL");
-  }
-};
-
-/**
- *
- * @param {keyof typeof VOICES} id
- * @returns {Promise<ArrayBufferLike>}
- */
-async function getVoiceFile(id) {
-  if (fs && Object.hasOwn(fs, 'readFile')) {
-    const dirname = typeof __dirname !== "undefined" ? __dirname : import.meta.dirname;
-    const file = path.resolve(dirname, `../voices/${id}.bin`);
-    const { buffer } = await fs.readFile(file);
-    return buffer;
-  }
-
-  const url = `${voiceDataUrl}/${id}.bin`;
-
-  let cache;
-  try {
-    cache = await caches.open("kokoro-voices");
-    const cachedResponse = await cache.match(url);
-    if (cachedResponse) {
-      return await cachedResponse.arrayBuffer();
-    }
-  } catch (e) {
-    console.warn("Unable to open cache", e);
-  }
-
-  // No cache, or cache failed to open. Fetch the file.
-  const response = await fetch(url);
-  const buffer = await response.arrayBuffer();
-
-  if (cache) {
-    try {
-      // NOTE: We use `new Response(buffer, ...)` instead of `response.clone()` to handle LFS files
-      await cache.put(
-        url,
-        new Response(buffer, {
-          headers: response.headers,
-        }),
-      );
-    } catch (e) {
-      console.warn("Unable to cache file", e);
-    }
-  }
-
-  return buffer;
-}
-
-const VOICE_CACHE = new Map();
-export async function getVoiceData(voice) {
-  if (VOICE_CACHE.has(voice)) {
-    return VOICE_CACHE.get(voice);
-  }
-
-  const buffer = new Float32Array(await getVoiceFile(voice));
-  VOICE_CACHE.set(voice, buffer);
-  return buffer;
-}
