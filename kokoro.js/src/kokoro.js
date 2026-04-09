@@ -60,7 +60,7 @@ export class KokoroTTS {
       console.table(VOICES);
       throw new Error(`Voice "${voice}" not found. Should be one of: ${Object.keys(VOICES).join(", ")}.`);
     }
-    const language = /** @type {"a"|"b"} */ (voice.at(0)); // "a" or "b"
+    const language = /** @type {"a"|"b"|"j"|"z"|"e"|"f"|"h"|"i"|"p"} */ (voice.at(0));
     return language;
   }
 
@@ -75,7 +75,7 @@ export class KokoroTTS {
     const language = this._validate_voice(voice);
 
     const phonemes = await phonemize(text, language);
-    const { input_ids } = this.tokenizer(phonemes, {
+    const { input_ids } = await this.tokenizer(phonemes, {
       truncation: true,
     });
 
@@ -131,12 +131,13 @@ export class KokoroTTS {
           .filter((chunk) => chunk.length > 0)
         : [text];
       splitter.push(...chunks);
+      splitter.close();
     } else {
       throw new Error("Invalid input type. Expected string or TextSplitterStream.");
     }
     for await (const sentence of splitter) {
       const phonemes = await phonemize(sentence, language);
-      const { input_ids } = this.tokenizer(phonemes, {
+      const { input_ids } = await this.tokenizer(phonemes, {
         truncation: true,
       });
 
@@ -159,6 +160,7 @@ export const env = {
   set wasmPaths(value) {
     hf.backends.onnx.wasm.wasmPaths = value;
   },
+  /** @returns {any} */
   get wasmPaths() {
     return hf.backends.onnx.wasm.wasmPaths;
   },

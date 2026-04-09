@@ -14,9 +14,11 @@ const OUTPUT_CONFIGS = [
     format: "esm",
   },
 
-  // Web version
+  // Web version (uses dir output because ephone lang packs are dynamic imports → multiple chunks)
   {
-    file: "./dist/kokoro.web.js",
+    dir: "./dist",
+    entryFileNames: "kokoro.web.js",
+    chunkFileNames: "kokoro.web-[hash].js",
     format: "esm",
   },
 ];
@@ -28,11 +30,11 @@ const WEB_SPECIFIC_CONFIG = {
 };
 
 const NODE_SPECIFIC_CONFIG = {
-  external: ["@huggingface/transformers", "phonemizer"],
+  external: ["@huggingface/transformers", "ephone"],
 };
 
 export default OUTPUT_CONFIGS.map((output) => {
-  const web = output.file.endsWith(".web.js");
+  const web = (output.file ?? output.entryFileNames ?? "").includes(".web.");
   return {
     input: "./src/kokoro.js",
     output,
