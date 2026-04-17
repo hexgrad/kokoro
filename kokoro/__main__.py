@@ -23,6 +23,7 @@ from loguru import logger
 languages = [
     "a",  # American English
     "b",  # British English
+    "d",  # German
     "h",  # Hindi
     "e",  # Spanish
     "f",  # French
