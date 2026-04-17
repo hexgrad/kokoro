@@ -140,7 +140,6 @@ class KPipeline:
                 raise
         else:
             language = LANG_CODES[lang_code]
-            logger.warning(f"Using EspeakG2P(language='{language}'). Chunking logic not yet implemented, so long texts may be truncated unless you split them with '\\n'.")
             self.g2p = espeak.EspeakG2P(language=language)
 
     def load_single_voice(self, voice: str):
