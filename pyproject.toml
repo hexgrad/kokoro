@@ -26,6 +26,12 @@ dependencies = [
     "transformers"
 ]
 
+# German TTS requires espeak-ng system package: apt-get install espeak-ng
+# No additional Python packages are needed beyond the base dependencies.
+[project.optional-dependencies]
+ja = ["misaki[ja]>=0.9.4"]
+zh = ["misaki[zh]>=0.9.4"]
+
 [project.scripts]
 kokoro = "kokoro.__main__:main"
 
