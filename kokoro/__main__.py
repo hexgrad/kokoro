@@ -1,9 +1,13 @@
 """Kokoro TTS CLI
 Example usage:
 python3 -m kokoro --text "The sky above the port was the color of television, tuned to a dead channel." -o file.wav --debug
+python3 -m kokoro --text "Guten Morgen, wie geht es Ihnen heute?" -l d --voice df_anna -o german.wav
 
 echo "Bom dia mundo, como vão vocês" > text.txt
 python3 -m kokoro -i text.txt -l p --voice pm_alex > audio.wav
+
+echo "Hallo Welt" > text.txt
+python3 -m kokoro -i text.txt -l d --voice df_anna > audio.wav
 
 Common issues:
 pip not installed: `uv pip install pip`
@@ -23,6 +27,7 @@ from loguru import logger
 languages = [
     "a",  # American English
     "b",  # British English
+    "d",  # German
     "h",  # Hindi
     "e",  # Spanish
     "f",  # French
@@ -71,7 +76,7 @@ def main() -> None:
         "-m",
         "--voice",
         default="af_heart",
-        help="Voice to use",
+        help="Voice to use (e.g. df_anna for German female, dm_bernd for German male)",
     )
     parser.add_argument(
         "-l",

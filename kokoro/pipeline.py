@@ -11,19 +11,23 @@ import os
 ALIASES = {
     'en-us': 'a',
     'en-gb': 'b',
-    'es': 'e',
+    'de':    'd',   # German
+    'es':    'e',
     'fr-fr': 'f',
-    'hi': 'h',
-    'it': 'i',
+    'hi':    'h',
+    'it':    'i',
     'pt-br': 'p',
-    'ja': 'j',
-    'zh': 'z',
+    'ja':    'j',
+    'zh':    'z',
 }
 
 LANG_CODES = dict(
     # pip install misaki[en]
     a='American English',
     b='British English',
+
+    # German — uses espeak-ng (apt-get install espeak-ng)
+    d='German',
 
     # espeak-ng
     e='es',
@@ -71,14 +75,12 @@ class KPipeline:
         device: Optional[str] = None
     ):
         """Initialize a KPipeline.
-        
+
         Args:
-            lang_code: Language code for G2P processing
+            lang_code: Language code. Use 'd' or 'de' for German.
             model: KModel instance, True to create new model, False for no model
-            trf: Whether to use transformer-based G2P
-            device: Override default device selection ('cuda' or 'cpu', or None for auto)
-                   If None, will auto-select cuda if available
-                   If 'cuda' and not available, will explicitly raise an error
+            trf: Whether to use transformer-based G2P (English only)
+            device: 'cuda', 'cpu', 'mps', or None for auto
         """
         if repo_id is None:
             repo_id = 'hexgrad/Kokoro-82M'
@@ -121,6 +123,13 @@ class KPipeline:
                 logger.warning({str(e)})
                 fallback = None
             self.g2p = en.G2P(trf=trf, british=lang_code=='b', fallback=fallback, unk='')
+        elif lang_code == 'd':
+            try:
+                from .de_g2p import DEG2P
+                self.g2p = DEG2P()
+            except RuntimeError as e:
+                logger.error(str(e))
+                raise
         elif lang_code == 'j':
             try:
                 from misaki import ja
@@ -185,7 +194,7 @@ class KPipeline:
         tokens: List[en.MToken],
         next_count: int,
         waterfall: List[str] = ['!.?…', ':;', ',—'],
-        bumps: List[str] = [')', '”']
+        bumps: List[str] = [')', '"']
     ) -> int:
         for w in waterfall:
             z = next((i for i, t in reversed(list(enumerate(tokens))) if t.phonemes in set(w)), None)

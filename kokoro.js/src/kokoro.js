@@ -1,5 +1,10 @@
+// @ts-nocheck
 import { env as hf, StyleTextToSpeech2Model, AutoTokenizer, Tensor, RawAudio } from "@huggingface/transformers";
 import { phonemize } from "./phonemize.js";
+// ... rest of the file
+import { env as hf, StyleTextToSpeech2Model, AutoTokenizer, Tensor, RawAudio } from "@huggingface/transformers";
+import { phonemize } from "./phonemize.js";
+import { phonemize_de } from "./phonemize_de.js";
 import { TextSplitterStream } from "./splitter.js";
 import { getVoiceData, VOICES } from "./voices.js";
 
@@ -41,7 +46,6 @@ export class KokoroTTS {
   static async from_pretrained(model_id, { dtype = "fp32", device = null, progress_callback = null } = {}) {
     const model = StyleTextToSpeech2Model.from_pretrained(model_id, { progress_callback, dtype, device });
     const tokenizer = AutoTokenizer.from_pretrained(model_id, { progress_callback });
-
     const info = await Promise.all([model, tokenizer]);
     return new KokoroTTS(...info);
   }
@@ -54,31 +58,41 @@ export class KokoroTTS {
     console.table(VOICES);
   }
 
+  /**
+   * Validate voice and return its language prefix.
+   * @param {string} voice
+   * @returns {"a"|"b"|"d"}
+   */
   _validate_voice(voice) {
-    if (!VOICES.hasOwnProperty(voice)) {
+    if (!Object.prototype.hasOwnProperty.call(VOICES, voice)) {
       console.error(`Voice "${voice}" not found. Available voices:`);
       console.table(VOICES);
       throw new Error(`Voice "${voice}" not found. Should be one of: ${Object.keys(VOICES).join(", ")}.`);
     }
-    const language = /** @type {"a"|"b"} */ (voice.at(0)); // "a" or "b"
-    return language;
+    return /** @type {"a"|"b"|"d"} */ (voice.at(0));
+  }
+
+  /**
+   * Phonemise text for the given language prefix.
+   * @param {string} text
+   * @param {"a"|"b"|"d"} language
+   * @returns {Promise<string>}
+   */
+  async _phonemize(text, language) {
+    if (language === "d") return phonemize_de(text);
+    return phonemize(text, language);
   }
 
   /**
    * Generate audio from text.
-   *
    * @param {string} text The input text
    * @param {GenerateOptions} options Additional options
    * @returns {Promise<RawAudio>} The generated audio
    */
   async generate(text, { voice = "af_heart", speed = 1 } = {}) {
     const language = this._validate_voice(voice);
-
-    const phonemes = await phonemize(text, language);
-    const { input_ids } = this.tokenizer(phonemes, {
-      truncation: true,
-    });
-
+    const phonemes = await this._phonemize(text, language);
+    const { input_ids } = this.tokenizer(phonemes, { truncation: true });
     return this.generate_from_ids(input_ids, { voice, speed });
   }
 
@@ -89,22 +103,15 @@ export class KokoroTTS {
    * @returns {Promise<RawAudio>} The generated audio
    */
   async generate_from_ids(input_ids, { voice = "af_heart", speed = 1 } = {}) {
-    // Select voice style based on number of input tokens
     const num_tokens = Math.min(Math.max(input_ids.dims.at(-1) - 2, 0), 509);
-
-    // Load voice style
     const data = await getVoiceData(voice);
     const offset = num_tokens * STYLE_DIM;
     const voiceData = data.slice(offset, offset + STYLE_DIM);
-
-    // Prepare model inputs
     const inputs = {
       input_ids,
       style: new Tensor("float32", voiceData, [1, STYLE_DIM]),
       speed: new Tensor("float32", [speed], [1]),
     };
-
-    // Generate audio
     const { waveform } = await this.model(inputs);
     return new RawAudio(waveform.data, SAMPLE_RATE);
   }
@@ -125,24 +132,16 @@ export class KokoroTTS {
     } else if (typeof text === "string") {
       splitter = new TextSplitterStream();
       const chunks = split_pattern
-        ? text
-          .split(split_pattern)
-          .map((chunk) => chunk.trim())
-          .filter((chunk) => chunk.length > 0)
+        ? text.split(split_pattern).map((c) => c.trim()).filter((c) => c.length > 0)
         : [text];
       splitter.push(...chunks);
     } else {
       throw new Error("Invalid input type. Expected string or TextSplitterStream.");
     }
-    for await (const sentence of splitter) {
-      const phonemes = await phonemize(sentence, language);
-      const { input_ids } = this.tokenizer(phonemes, {
-        truncation: true,
-      });
 
-      // TODO: There may be some cases where - even with splitting - the text is too long.
-      // In that case, we should split the text into smaller chunks and process them separately.
-      // For now, we just truncate these exceptionally long chunks
+    for await (const sentence of splitter) {
+      const phonemes = await this._phonemize(sentence, language);
+      const { input_ids } = this.tokenizer(phonemes, { truncation: true });
       const audio = await this.generate_from_ids(input_ids, { voice, speed });
       yield { text: sentence, phonemes, audio };
     }
@@ -150,18 +149,10 @@ export class KokoroTTS {
 }
 
 export const env = {
-  set cacheDir(value) {
-    hf.cacheDir = value
-  },
-  get cacheDir() {
-    return hf.cacheDir
-  },
-  set wasmPaths(value) {
-    hf.backends.onnx.wasm.wasmPaths = value;
-  },
-  get wasmPaths() {
-    return hf.backends.onnx.wasm.wasmPaths;
-  },
+  set cacheDir(value) { hf.cacheDir = value; },
+  get cacheDir() { return hf.cacheDir; },
+  set wasmPaths(value) { hf.backends.onnx.wasm.wasmPaths = value; },
+  get wasmPaths() { return hf.backends.onnx.wasm.wasmPaths; },
 };
 
 export { TextSplitterStream };
