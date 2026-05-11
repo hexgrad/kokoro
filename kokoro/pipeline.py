@@ -1,6 +1,5 @@
-from .model import KModel
+from .model import KModel, resolve_repo_file
 from dataclasses import dataclass
-from huggingface_hub import hf_hub_download
 from loguru import logger
 from misaki import en, espeak
 from typing import Callable, Generator, List, Optional, Tuple, Union
@@ -68,7 +67,8 @@ class KPipeline:
         model: Union[KModel, bool] = True,
         trf: bool = False,
         en_callable: Optional[Callable[[str], str]] = None,
-        device: Optional[str] = None
+        device: Optional[str] = None,
+        local_repo_dir: Optional[str] = None,
     ):
         """Initialize a KPipeline.
         
@@ -79,11 +79,13 @@ class KPipeline:
             device: Override default device selection ('cuda' or 'cpu', or None for auto)
                    If None, will auto-select cuda if available
                    If 'cuda' and not available, will explicitly raise an error
+            local_repo_dir: Local repo-shaped directory containing model files and voices.
         """
         if repo_id is None:
             repo_id = 'hexgrad/Kokoro-82M'
             print(f"WARNING: Defaulting repo_id to {repo_id}. Pass repo_id='{repo_id}' to suppress this warning.")
         self.repo_id = repo_id
+        self.local_repo_dir = local_repo_dir
         lang_code = lang_code.lower()
         lang_code = ALIASES.get(lang_code, lang_code)
         assert lang_code in LANG_CODES, (lang_code, LANG_CODES)
@@ -106,7 +108,7 @@ class KPipeline:
                 else:
                     device = 'cpu'
             try:
-                self.model = KModel(repo_id=repo_id).to(device).eval()
+                self.model = KModel(repo_id=repo_id, local_repo_dir=local_repo_dir).to(device).eval()
             except RuntimeError as e:
                 if device == 'cuda':
                     raise RuntimeError(f"""Failed to initialize model on CUDA: {e}. 
@@ -131,6 +133,22 @@ class KPipeline:
         elif lang_code == 'z':
             try:
                 from misaki import zh
+                if en_callable is None:
+                    en_pipeline = KPipeline(
+                        lang_code='a',
+                        repo_id=repo_id,
+                        model=False,
+                        trf=trf,
+                        local_repo_dir=local_repo_dir,
+                    )
+
+                    def en_callable(text: str) -> str:
+                        return ' '.join(
+                            result.phonemes
+                            for result in en_pipeline(text, split_pattern=None)
+                            if result.phonemes
+                        ).strip()
+
                 self.g2p = zh.ZHG2P(
                     version=None if repo_id.endswith('/Kokoro-82M') else '1.1',
                     en_callable=en_callable
@@ -149,7 +167,11 @@ class KPipeline:
         if voice.endswith('.pt'):
             f = voice
         else:
-            f = hf_hub_download(repo_id=self.repo_id, filename=f'voices/{voice}.pt')
+            f = resolve_repo_file(
+                repo_id=self.repo_id,
+                filename=f'voices/{voice}.pt',
+                local_repo_dir=self.local_repo_dir,
+            )
             if not voice.startswith(self.lang_code):
                 v = LANG_CODES.get(voice, voice)
                 p = LANG_CODES.get(self.lang_code, self.lang_code)

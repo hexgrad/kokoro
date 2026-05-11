@@ -1,12 +1,38 @@
 from .istftnet import Decoder
 from .modules import CustomAlbert, ProsodyPredictor, TextEncoder
 from dataclasses import dataclass
-from huggingface_hub import hf_hub_download
 from loguru import logger
+from torch.nn.utils import parametrize
 from transformers import AlbertConfig
 from typing import Dict, Optional, Union
 import json
+import os
 import torch
+
+
+def resolve_repo_file(
+    repo_id: str,
+    filename: str,
+    local_repo_dir: Optional[str] = None,
+) -> str:
+    if local_repo_dir is not None:
+        local_repo_dir = os.path.expanduser(local_repo_dir)
+        path = os.path.join(local_repo_dir, filename)
+        if not os.path.isfile(path):
+            raise FileNotFoundError(path)
+        return path
+    from huggingface_hub import hf_hub_download
+    return hf_hub_download(repo_id=repo_id, filename=filename)
+
+
+def strip_weight_norm(module: torch.nn.Module) -> int:
+    removed = 0
+    for child in module.modules():
+        if parametrize.is_parametrized(child, "weight"):
+            parametrize.remove_parametrizations(child, "weight", leave_parametrized=True)
+            removed += 1
+    return removed
+
 
 class KModel(torch.nn.Module):
     '''
@@ -33,7 +59,9 @@ class KModel(torch.nn.Module):
         repo_id: Optional[str] = None,
         config: Union[Dict, str, None] = None,
         model: Optional[str] = None,
-        disable_complex: bool = False
+        disable_complex: bool = False,
+        local_repo_dir: Optional[str] = None,
+        for_training: bool = False,
     ):
         super().__init__()
         if repo_id is None:
@@ -42,8 +70,11 @@ class KModel(torch.nn.Module):
         self.repo_id = repo_id
         if not isinstance(config, dict):
             if not config:
-                logger.debug("No config provided, downloading from HF")
-                config = hf_hub_download(repo_id=repo_id, filename='config.json')
+                config = resolve_repo_file(
+                    repo_id=repo_id,
+                    filename='config.json',
+                    local_repo_dir=local_repo_dir,
+                )
             with open(config, 'r', encoding='utf-8') as r:
                 config = json.load(r)
                 logger.debug(f"Loaded config: {config}")
@@ -64,7 +95,11 @@ class KModel(torch.nn.Module):
             dim_out=config['n_mels'], disable_complex=disable_complex, **config['istftnet']
         )
         if not model:
-            model = hf_hub_download(repo_id=repo_id, filename=KModel.MODEL_NAMES[repo_id])
+            model = resolve_repo_file(
+                repo_id=repo_id,
+                filename=KModel.MODEL_NAMES[repo_id],
+                local_repo_dir=local_repo_dir,
+            )
         for key, state_dict in torch.load(model, map_location='cpu', weights_only=True).items():
             assert hasattr(self, key), key
             try:
@@ -73,10 +108,17 @@ class KModel(torch.nn.Module):
                 logger.debug(f"Did not load {key} from state_dict")
                 state_dict = {k[7:]: v for k, v in state_dict.items()}
                 getattr(self, key).load_state_dict(state_dict, strict=False)
+        if not for_training:
+            self.prepare_for_inference()
 
     @property
     def device(self):
         return self.bert.device
+
+    def prepare_for_inference(self) -> int:
+        removed = strip_weight_norm(self)
+        logger.debug(f"Removed weight_norm from {removed} modules")
+        return removed
 
     @dataclass
     class Output:
