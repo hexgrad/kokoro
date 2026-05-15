@@ -23,6 +23,7 @@ from loguru import logger
 languages = [
     "a",  # American English
     "b",  # British English
+    "d",  # German
     "h",  # Hindi
     "e",  # Spanish
     "f",  # French
@@ -127,8 +128,9 @@ def main() -> None:
         text = file.read_text()
     else:
         import sys
+
         print("Press Ctrl+D to stop reading input and start generating", flush=True)
-        text = '\n'.join(sys.stdin)
+        text = "\n".join(sys.stdin)
 
     logger.debug(f"Input text: {text!r}")
 
