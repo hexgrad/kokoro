@@ -45,6 +45,7 @@ import torch
 # 🇮🇹 'i' => Italian it
 # 🇯🇵 'j' => Japanese: pip install misaki[ja]
 # 🇧🇷 'p' => Brazilian Portuguese pt-br
+# 🇩🇪 'd' => German de (community voices; see docs/german.md)
 # 🇨🇳 'z' => Mandarin Chinese: pip install misaki[zh]
 pipeline = KPipeline(lang_code='a') # <= make sure lang_code matches voice, reference above.
 
