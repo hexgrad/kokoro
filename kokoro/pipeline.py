@@ -1,3 +1,4 @@
+from .de_text import normalize_german
 from .model import KModel
 from dataclasses import dataclass
 from huggingface_hub import hf_hub_download
@@ -11,6 +12,9 @@ import os
 ALIASES = {
     'en-us': 'a',
     'en-gb': 'b',
+    'de': 'd',
+    'de-de': 'd',
+    'german': 'd',
     'es': 'e',
     'fr-fr': 'f',
     'hi': 'h',
@@ -37,6 +41,9 @@ LANG_CODES = dict(
 
     # pip install misaki[zh]
     z='Mandarin Chinese',
+
+    # espeak-ng (community German voices: load external .pt packs, see docs/german.md)
+    d='de',
 )
 
 class KPipeline:
@@ -379,6 +386,9 @@ class KPipeline:
         for graphemes_index, graphemes in enumerate(text):
             if not graphemes.strip():  # Skip empty segments
                 continue
+
+            if self.lang_code == 'd':
+                graphemes = normalize_german(graphemes)
                 
             # English processing (unchanged)
             if self.lang_code in 'ab':
