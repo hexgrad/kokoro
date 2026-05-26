@@ -16,6 +16,11 @@ class TestGermanNormalization(unittest.TestCase):
         out = normalize_german("zzgl. Versand, ca. 3 Tage.")
         self.assertIn("zuzüglich", out)
 
+    def test_max_abbrev_does_not_corrupt_maximal(self):
+        out = normalize_german("max. 10 min.")
+        self.assertIn("maximal", out)
+        self.assertNotIn("Milliampere", out)
+
 
 if __name__ == "__main__":
     unittest.main()

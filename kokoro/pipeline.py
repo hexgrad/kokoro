@@ -1,3 +1,4 @@
+from .de_text import normalize_german
 from .model import KModel
 from dataclasses import dataclass
 from huggingface_hub import hf_hub_download
@@ -387,7 +388,6 @@ class KPipeline:
                 continue
 
             if self.lang_code == 'd':
-                from .de_text import normalize_german
                 graphemes = normalize_german(graphemes)
                 
             # English processing (unchanged)
