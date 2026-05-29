@@ -121,6 +121,7 @@ export class KokoroTTS {
     /** @type {TextSplitterStream} */
     let splitter;
     if (text instanceof TextSplitterStream) {
+      // Caller owns the lifecycle — they are responsible for close().
       splitter = text;
     } else if (typeof text === "string") {
       splitter = new TextSplitterStream();
@@ -131,6 +132,12 @@ export class KokoroTTS {
           .filter((chunk) => chunk.length > 0)
         : [text];
       splitter.push(...chunks);
+      // The whole input is known up-front, so close the splitter to flush
+      // its trailing buffer and terminate the iterator. Without this, the
+      // splitter's _process() holds the final sentence back (waiting on
+      // possible trailing context to disambiguate abbreviations) and the
+      // async iterator awaits indefinitely after the last yielded sentence.
+      splitter.close();
     } else {
       throw new Error("Invalid input type. Expected string or TextSplitterStream.");
     }
