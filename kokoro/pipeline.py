@@ -37,6 +37,9 @@ LANG_CODES = dict(
 
     # pip install misaki[zh]
     z='Mandarin Chinese',
+
+    # German - requires kokoro_de_prep for training data
+    d='German',
 )
 
 class KPipeline:
@@ -138,6 +141,9 @@ class KPipeline:
             except ImportError:
                 logger.error("You need to `pip install misaki[zh]` to use lang_code='z'")
                 raise
+        elif lang_code == 'd':
+            logger.info("Using German G2P via eSpeak-ng")
+            self.g2p = espeak.EspeakG2P(language='de')
         else:
             language = LANG_CODES[lang_code]
             logger.warning(f"Using EspeakG2P(language='{language}'). Chunking logic not yet implemented, so long texts may be truncated unless you split them with '\\n'.")
