@@ -46,6 +46,7 @@ import torch
 # 🇯🇵 'j' => Japanese: pip install misaki[ja]
 # 🇧🇷 'p' => Brazilian Portuguese pt-br
 # 🇨🇳 'z' => Mandarin Chinese: pip install misaki[zh]
+# 🇩🇪 'd' => German: pip install misaki[de] (experimental)
 pipeline = KPipeline(lang_code='a') # <= make sure lang_code matches voice, reference above.
 
 # This text is for demonstration purposes only, unseen during training
