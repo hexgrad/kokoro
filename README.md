@@ -123,6 +123,7 @@ dependencies:
 - 🏆 [@Pendrokar](https://huggingface.co/Pendrokar) for adding Kokoro as a contender in the TTS Spaces Arena.
 - 📊 Thank you to everyone who contributed synthetic training data.
 - ❤️ Special thanks to all compute sponsors.
+- 🇩🇪 Support German language development: [Donate via Opire](https://opire.org/)
 - 👾 Discord server: https://discord.gg/QuGxSWBfQy
 - 🪽 Kokoro is a Japanese word that translates to "heart" or "spirit". Kokoro is also a [character in the Terminator franchise](https://terminator.fandom.com/wiki/Kokoro) along with [Misaki](https://github.com/hexgrad/misaki?tab=readme-ov-file#acknowledgements).
 
