@@ -36,3 +36,4 @@ only-packages = true
 [project.urls]
 Homepage = "https://github.com/hexgrad/kokoro"
 Repository = "https://github.com/hexgrad/kokoro"
+Funding = "https://opire.org/"
