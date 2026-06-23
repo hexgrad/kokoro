@@ -167,7 +167,7 @@ const PUNCTUATION_PATTERN = new RegExp(`(\\s*[${escapeRegExp(PUNCTUATION)}]+\\s*
 /**
  * Phonemize text using the eSpeak-NG phonemizer
  * @param {string} text The text to phonemize
- * @param {"a"|"b"} language The language to use
+ * @param {"a"|"b"|"d"} language The language to use
  * @param {boolean} norm Whether to normalize the text
  * @returns {Promise<string>} The phonemized text
  */
@@ -181,7 +181,14 @@ export async function phonemize(text, language = "a", norm = true) {
   const sections = split(text, PUNCTUATION_PATTERN);
 
   // 3. Convert each section to phonemes
-  const lang = language === "a" ? "en-us" : "en";
+  let lang;
+  if (language === "a") {
+    lang = "en-us";
+  } else if (language === "d") {
+    lang = "de";
+  } else {
+    lang = "en";
+  }
   const ps = (await Promise.all(sections.map(async ({ match, text }) => (match ? text : (await espeakng(text, lang)).join(" "))))).join("");
 
   // 4. Post-process phonemes
