@@ -206,6 +206,62 @@ export const VOICES = Object.freeze({
     targetQuality: "B",
     overallGrade: "C",
   },
+  zf_xiaobei: {
+    name: "Xiaobei",
+    language: "zh",
+    gender: "Female",
+    targetQuality: "C",
+    overallGrade: "D",
+  },
+  zf_xiaoni: {
+    name: "Xiaoni",
+    language: "zh",
+    gender: "Female",
+    targetQuality: "C",
+    overallGrade: "D",
+  },
+  zf_xiaoxiao: {
+    name: "Xiaoxiao",
+    language: "zh",
+    gender: "Female",
+    targetQuality: "C",
+    overallGrade: "D",
+  },
+  zf_xiaoyi: {
+    name: "Xiaoyi",
+    language: "zh",
+    gender: "Female",
+    targetQuality: "C",
+    overallGrade: "D",
+  },
+  zm_yunjian: {
+    name: "Yunjian",
+    language: "zh",
+    gender: "Male",
+    targetQuality: "C",
+    overallGrade: "D",
+  },
+  zm_yunxi: {
+    name: "Yunxi",
+    language: "zh",
+    gender: "Male",
+    targetQuality: "C",
+    overallGrade: "D",
+  },
+  zm_yunxia: {
+    name: "Yunxia",
+    language: "zh",
+    gender: "Male",
+    targetQuality: "C",
+    overallGrade: "D",
+  },
+  zm_yunyang: {
+    name: "Yunyang",
+    language: "zh",
+    gender: "Male",
+    targetQuality: "C",
+    overallGrade: "D",
+  },
 
   // TODO: Add support for other languages:
   // jf_alpha: {

@@ -1,4 +1,5 @@
 import { phonemize as espeakng } from "phonemizer";
+import { phonemizeChinese } from "./phonemize-zh.js";
 
 /**
  * Helper function to split a string on a regex, but keep the delimiters.
@@ -167,11 +168,15 @@ const PUNCTUATION_PATTERN = new RegExp(`(\\s*[${escapeRegExp(PUNCTUATION)}]+\\s*
 /**
  * Phonemize text using the eSpeak-NG phonemizer
  * @param {string} text The text to phonemize
- * @param {"a"|"b"} language The language to use
+ * @param {"a"|"b"|"z"} language The language to use
  * @param {boolean} norm Whether to normalize the text
  * @returns {Promise<string>} The phonemized text
  */
 export async function phonemize(text, language = "a", norm = true) {
+  if (language === "z") {
+    return phonemizeChinese(text, (english) => phonemize(english, "a", true));
+  }
+
   // 1. Normalize text
   if (norm) {
     text = normalize_text(text);

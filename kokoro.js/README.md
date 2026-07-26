@@ -37,6 +37,14 @@ const audio = await tts.generate(text, {
 audio.save("audio.wav");
 ```
 
+Mandarin Chinese is supported by selecting a `zf_` or `zm_` voice:
+
+```js
+const audio = await tts.generate("每一本书都值得被听见。", {
+  voice: "zf_xiaobei",
+});
+```
+
 Or if you'd prefer to stream the output, you can do that with:
 
 ```js

@@ -92,4 +92,17 @@ describe("phonemize", () => {
       });
     }
   });
+  describe("zh", () => {
+    test("phonemizes Mandarin characters and punctuation", async () => {
+      expect(await phonemize("你好，世界！", "z")).toEqual("ni↓xau̯↓, ʂɻ̩↘ʨje↘!");
+    });
+
+    test("keeps mixed English text", async () => {
+      expect(await phonemize("你好 Kokoro", "z")).toContain("kˈoʊkəɹoʊ");
+    });
+
+    test("handles ü finals", async () => {
+      expect(await phonemize("女儿", "z")).toEqual("ny↓ɚ↗");
+    });
+  });
 });

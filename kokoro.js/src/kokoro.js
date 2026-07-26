@@ -60,7 +60,7 @@ export class KokoroTTS {
       console.table(VOICES);
       throw new Error(`Voice "${voice}" not found. Should be one of: ${Object.keys(VOICES).join(", ")}.`);
     }
-    const language = /** @type {"a"|"b"} */ (voice.at(0)); // "a" or "b"
+    const language = /** @type {"a"|"b"|"z"} */ (voice.at(0));
     return language;
   }
 
