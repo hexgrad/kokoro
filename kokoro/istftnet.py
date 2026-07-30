@@ -1,5 +1,6 @@
 # ADAPTED from https://github.com/yl4579/StyleTTS2/blob/main/Modules/istftnet.py
 from kokoro.custom_stft import CustomSTFT
+from kokoro.exact_source import ExactSineGen
 from torch.nn.utils.parametrizations import weight_norm
 import math
 import torch
@@ -227,12 +228,13 @@ class SourceModuleHnNSF(nn.Module):
     uv (batchsize, length, 1)
     """
     def __init__(self, sampling_rate, upsample_scale, harmonic_num=0, sine_amp=0.1,
-                 add_noise_std=0.003, voiced_threshod=0):
+                 add_noise_std=0.003, voiced_threshod=0, exact_source=False):
         super(SourceModuleHnNSF, self).__init__()
         self.sine_amp = sine_amp
         self.noise_std = add_noise_std
         # to produce sine waveforms
-        self.l_sin_gen = SineGen(sampling_rate, upsample_scale, harmonic_num,
+        sine_gen_cls = ExactSineGen if exact_source else SineGen
+        self.l_sin_gen = sine_gen_cls(sampling_rate, upsample_scale, harmonic_num,
                                  sine_amp, add_noise_std, voiced_threshod)
         # to merge source harmonics into a single excitation
         self.l_linear = nn.Linear(harmonic_num + 1, 1)
@@ -255,14 +257,14 @@ class SourceModuleHnNSF(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, style_dim, resblock_kernel_sizes, upsample_rates, upsample_initial_channel, resblock_dilation_sizes, upsample_kernel_sizes, gen_istft_n_fft, gen_istft_hop_size, disable_complex=False):
+    def __init__(self, style_dim, resblock_kernel_sizes, upsample_rates, upsample_initial_channel, resblock_dilation_sizes, upsample_kernel_sizes, gen_istft_n_fft, gen_istft_hop_size, disable_complex=False, exact_source=False):
         super(Generator, self).__init__()
         self.num_kernels = len(resblock_kernel_sizes)
         self.num_upsamples = len(upsample_rates)
         self.m_source = SourceModuleHnNSF(
                     sampling_rate=24000,
                     upsample_scale=math.prod(upsample_rates) * gen_istft_hop_size,
-                    harmonic_num=8, voiced_threshod=10)
+                    harmonic_num=8, voiced_threshod=10, exact_source=exact_source)
         self.f0_upsamp = nn.Upsample(scale_factor=math.prod(upsample_rates) * gen_istft_hop_size)
         self.noise_convs = nn.ModuleList()
         self.noise_res = nn.ModuleList()
@@ -389,7 +391,7 @@ class Decoder(nn.Module):
                  resblock_dilation_sizes,
                  upsample_kernel_sizes,
                  gen_istft_n_fft, gen_istft_hop_size,
-                 disable_complex=False):
+                 disable_complex=False, exact_source=False):
         super().__init__()
         self.encode = AdainResBlk1d(dim_in + 2, 1024, style_dim)
         self.decode = nn.ModuleList()
@@ -402,7 +404,7 @@ class Decoder(nn.Module):
         self.asr_res = nn.Sequential(weight_norm(nn.Conv1d(512, 64, kernel_size=1)))
         self.generator = Generator(style_dim, resblock_kernel_sizes, upsample_rates, 
                                    upsample_initial_channel, resblock_dilation_sizes, 
-                                   upsample_kernel_sizes, gen_istft_n_fft, gen_istft_hop_size, disable_complex=disable_complex)
+                                   upsample_kernel_sizes, gen_istft_n_fft, gen_istft_hop_size, disable_complex=disable_complex, exact_source=exact_source)
 
     def forward(self, asr, F0_curve, N, s):
         F0 = self.F0_conv(F0_curve.unsqueeze(1))
