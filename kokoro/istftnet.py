@@ -146,10 +146,6 @@ class SineGen(nn.Module):
         # convert to F0 in rad. The interger part n can be ignored
         # because 2 * torch.pi * n doesn't affect phase
         rad_values = (f0_values / self.sampling_rate) % 1
-        # initial phase noise (no noise for fundamental component)
-        rand_ini = torch.rand(f0_values.shape[0], f0_values.shape[2], device=f0_values.device)
-        rand_ini[:, 0] = 0
-        rad_values[:, 0, :] = rad_values[:, 0, :] + rand_ini
         # instantanouse phase sine[t] = sin(2*pi \sum_i=1 ^{t} rad)
         if not self.flag_for_pulse:
             rad_values = F.interpolate(rad_values.transpose(1, 2), scale_factor=1/self.upsample_scale, mode="linear").transpose(1, 2)
