@@ -25,6 +25,18 @@ for i, (gs, ps, audio) in enumerate(generator):
 ```
 Under the hood, `kokoro` uses [`misaki`](https://pypi.org/project/misaki/), a G2P library at https://github.com/hexgrad/misaki
 
+### Funding & Language Bounties
+
+Adding a new language to Kokoro is mostly a data problem: it requires sourcing or generating suitable training audio and then training and evaluating new voices. Community bounties are one way to fund that work.
+
+| Language | Tracking issue | Contribute |
+| --- | --- | --- |
+| 🇩🇪 German (`de`) | [#290](https://github.com/hexgrad/kokoro/issues/290) | [Opire bounty](https://app.opire.dev/issues/01KCKZCP14P37WZQZQA9W6BGJJ) |
+
+General development can also be sponsored via [GitHub Sponsors](https://github.com/sponsors/hexgrad). All funding links are listed in [`.github/FUNDING.yml`](.github/FUNDING.yml).
+
+Note: a bounty is a signal of demand, not a delivery date. Languages ship only once weights exist and a matching [`misaki`](https://github.com/hexgrad/misaki) G2P backend is available, so no `lang_code` is exposed by this library before it actually works end to end. To propose a bounty for another language, open an issue and link it here.
+
 ### Advanced Usage
 You can run this advanced cell on [Google Colab](https://colab.research.google.com/).
 ```py
