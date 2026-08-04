@@ -36,10 +36,23 @@ export class KokoroTTS {
    * @param {"fp32"|"fp16"|"q8"|"q4"|"q4f16"} [options.dtype="fp32"] The data type to use.
    * @param {"wasm"|"webgpu"|"cpu"|null} [options.device=null] The device to run the model on.
    * @param {import("@huggingface/transformers").ProgressCallback} [options.progress_callback=null] A callback function that is called with progress information.
+   * @param {Object} [options.session_options={}] Additional onnxruntime session options, merged over
+   *  this method's own defaults. `stream()` calls `generate_from_ids()` once per sentence, each with a
+   *  differently-shaped `input_ids` tensor — onnxruntime's `enableMemPattern` optimization assumes
+   *  stable, repeated shapes across calls on a session, and with constantly-changing shapes its memory
+   *  pattern cache keeps getting invalidated and regrown instead of reused, causing unbounded native
+   *  memory growth (observed: RSS growing by ~600MB generating a single sentence) that can eventually
+   *  corrupt onnxruntime's allocator and crash the process. Defaulted off here since this is the normal
+   *  usage pattern for every caller of this library; pass `{ enableMemPattern: true }` to restore it.
    * @returns {Promise<KokoroTTS>} The loaded model
    */
-  static async from_pretrained(model_id, { dtype = "fp32", device = null, progress_callback = null } = {}) {
-    const model = StyleTextToSpeech2Model.from_pretrained(model_id, { progress_callback, dtype, device });
+  static async from_pretrained(model_id, { dtype = "fp32", device = null, progress_callback = null, session_options = {} } = {}) {
+    const model = StyleTextToSpeech2Model.from_pretrained(model_id, {
+      progress_callback,
+      dtype,
+      device,
+      session_options: { enableMemPattern: false, ...session_options },
+    });
     const tokenizer = AutoTokenizer.from_pretrained(model_id, { progress_callback });
 
     const info = await Promise.all([model, tokenizer]);
