@@ -36,10 +36,11 @@ export class KokoroTTS {
    * @param {"fp32"|"fp16"|"q8"|"q4"|"q4f16"} [options.dtype="fp32"] The data type to use.
    * @param {"wasm"|"webgpu"|"cpu"|null} [options.device=null] The device to run the model on.
    * @param {import("@huggingface/transformers").ProgressCallback} [options.progress_callback=null] A callback function that is called with progress information.
+   * @param {Object} [options.session_options=null] Additional options to pass to the ONNX Runtime inference session (e.g., intraOpNumThreads).
    * @returns {Promise<KokoroTTS>} The loaded model
    */
-  static async from_pretrained(model_id, { dtype = "fp32", device = null, progress_callback = null } = {}) {
-    const model = StyleTextToSpeech2Model.from_pretrained(model_id, { progress_callback, dtype, device });
+  static async from_pretrained(model_id, { dtype = "fp32", device = null, progress_callback = null, session_options = null } = {}) {
+    const model = StyleTextToSpeech2Model.from_pretrained(model_id, { progress_callback, dtype, device, ...(session_options ? { session_options } : {}) });
     const tokenizer = AutoTokenizer.from_pretrained(model_id, { progress_callback });
 
     const info = await Promise.all([model, tokenizer]);
