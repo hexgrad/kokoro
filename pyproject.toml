@@ -26,6 +26,25 @@ dependencies = [
     "transformers"
 ]
 
+[project.optional-dependencies]
+# See NOTES.md / draft-pr.md for why this is `cpu`+`xpu` extras rather than
+# a single opt-in `xpu` extra layered on the bare `torch` above: uv's
+# resolver treats an unconstrained `torch` requirement as satisfiable by
+# *any* source that matches, including the xpu-indexed wheel once one is
+# introduced anywhere in the graph -- it collapses to one universal answer
+# instead of forking per-extra, so a plain `uv sync` silently installed
+# `torch==2.13.0+xpu` even with no extra requested (reproduced empirically,
+# see draft-pr.md). Declaring `cpu` as an explicit, mutually-exclusive
+# alternative (uv's own documented pattern for cuda/rocm/xpu) is what
+# actually keeps the two forks separate.
+cpu = [
+    "torch>=2.5"
+]
+xpu = [
+    "torch>=2.5",
+    "triton-xpu; sys_platform == 'linux'"
+]
+
 [project.scripts]
 kokoro = "kokoro.__main__:main"
 
@@ -36,3 +55,30 @@ only-packages = true
 [project.urls]
 Homepage = "https://github.com/hexgrad/kokoro"
 Repository = "https://github.com/hexgrad/kokoro"
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "cpu" },
+        { extra = "xpu" },
+    ],
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-xpu", extra = "xpu" },
+]
+triton-xpu = [
+    { index = "pytorch-xpu", extra = "xpu" }
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-xpu"
+url = "https://download.pytorch.org/whl/xpu"
+explicit = true

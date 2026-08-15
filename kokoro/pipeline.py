@@ -76,9 +76,9 @@ class KPipeline:
             lang_code: Language code for G2P processing
             model: KModel instance, True to create new model, False for no model
             trf: Whether to use transformer-based G2P
-            device: Override default device selection ('cuda' or 'cpu', or None for auto)
-                   If None, will auto-select cuda if available
-                   If 'cuda' and not available, will explicitly raise an error
+            device: Override default device selection ('cuda', 'xpu', 'mps' or 'cpu', or None for auto)
+                   If None, will auto-select cuda, then xpu, then mps if available
+                   If an accelerator is explicitly requested and not available, will explicitly raise an error
         """
         if repo_id is None:
             repo_id = 'hexgrad/Kokoro-82M'
@@ -92,8 +92,11 @@ class KPipeline:
         if isinstance(model, KModel):
             self.model = model
         elif model:
+            xpu_available = hasattr(torch, 'xpu') and torch.xpu.is_available()
             if device == 'cuda' and not torch.cuda.is_available():
                 raise RuntimeError("CUDA requested but not available")
+            if device == 'xpu' and not xpu_available:
+                raise RuntimeError("XPU requested but not available")
             if device == 'mps' and not torch.backends.mps.is_available():
                 raise RuntimeError("MPS requested but not available")
             if device == 'mps' and os.environ.get('PYTORCH_ENABLE_MPS_FALLBACK') != '1':
@@ -101,6 +104,11 @@ class KPipeline:
             if device is None:
                 if torch.cuda.is_available():
                     device = 'cuda'
+                elif xpu_available:
+                    # Intel GPU (Arc / integrated Xe/Arc, e.g. Meteor Lake+) via
+                    # PyTorch's native xpu backend (built in since torch 2.5,
+                    # no intel-extension-for-pytorch required).
+                    device = 'xpu'
                 elif os.environ.get('PYTORCH_ENABLE_MPS_FALLBACK') == '1' and torch.backends.mps.is_available():
                     device = 'mps'
                 else:
@@ -109,8 +117,11 @@ class KPipeline:
                 self.model = KModel(repo_id=repo_id).to(device).eval()
             except RuntimeError as e:
                 if device == 'cuda':
-                    raise RuntimeError(f"""Failed to initialize model on CUDA: {e}. 
+                    raise RuntimeError(f"""Failed to initialize model on CUDA: {e}.
                                        Try setting device='cpu' or check CUDA installation.""")
+                if device == 'xpu':
+                    raise RuntimeError(f"""Failed to initialize model on XPU: {e}.
+                                       Try setting device='cpu' or check Intel GPU driver installation.""")
                 raise
         self.voices = {}
         if lang_code in 'ab':
