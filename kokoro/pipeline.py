@@ -13,6 +13,7 @@ ALIASES = {
     'en-gb': 'b',
     'es': 'e',
     'fr-fr': 'f',
+    'de': 'd',
     'hi': 'h',
     'it': 'i',
     'pt-br': 'p',
@@ -26,6 +27,7 @@ LANG_CODES = dict(
     b='British English',
 
     # espeak-ng
+    d='de',
     e='es',
     f='fr-fr',
     h='hi',
@@ -148,8 +150,22 @@ class KPipeline:
             return self.voices[voice]
         if voice.endswith('.pt'):
             f = voice
+            if not os.path.exists(f):
+                if self.lang_code == 'd':
+                    raise RuntimeError(f"German voice tensor '{voice}' not found locally. Please download a community German voice checkpoint (e.g., from Hugging Face) into your voices directory or specify a custom voice path.")
+                raise FileNotFoundError(f"Voice tensor '{voice}' not found locally.")
         else:
-            f = hf_hub_download(repo_id=self.repo_id, filename=f'voices/{voice}.pt')
+            try:
+                f = hf_hub_download(repo_id=self.repo_id, filename=f'voices/{voice}.pt')
+            except Exception as e:
+                if self.lang_code == 'd':
+                    logger.warning(f"Voice '{voice}' not found in {self.repo_id}. Attempting community fallback...")
+                    try:
+                        f = hf_hub_download(repo_id='cryptomilk/kokoro-german-kerstin', filename=f'voices/{voice}.pt')
+                    except Exception:
+                        raise RuntimeError(f"German voice tensor '{voice}' not found locally. Please download a community German voice checkpoint (e.g., from Hugging Face) into your voices directory or specify a custom voice path.")
+                else:
+                    raise e
             if not voice.startswith(self.lang_code):
                 v = LANG_CODES.get(voice, voice)
                 p = LANG_CODES.get(self.lang_code, self.lang_code)
