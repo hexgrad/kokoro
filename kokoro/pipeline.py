@@ -1,3 +1,4 @@
+from .chunks import chunk_graphemes
 from .model import KModel
 from dataclasses import dataclass
 from huggingface_hub import hf_hub_download
@@ -397,34 +398,8 @@ class KPipeline:
             
             # Non-English processing with chunking
             else:
-                # Split long text into smaller chunks (roughly 400 characters each)
-                # Using sentence boundaries when possible
-                chunk_size = 400
-                chunks = []
-                
-                # Try to split on sentence boundaries first
-                sentences = re.split(r'([.!?]+)', graphemes)
-                current_chunk = ""
-                
-                for i in range(0, len(sentences), 2):
-                    sentence = sentences[i]
-                    # Add the punctuation back if it exists
-                    if i + 1 < len(sentences):
-                        sentence += sentences[i + 1]
-                        
-                    if len(current_chunk) + len(sentence) <= chunk_size:
-                        current_chunk += sentence
-                    else:
-                        if current_chunk:
-                            chunks.append(current_chunk.strip())
-                        current_chunk = sentence
-                
-                if current_chunk:
-                    chunks.append(current_chunk.strip())
-                
-                # If no chunks were created (no sentence boundaries), fall back to character-based chunking
-                if not chunks:
-                    chunks = [graphemes[i:i+chunk_size] for i in range(0, len(graphemes), chunk_size)]
+                # A period between digits is a decimal point, not a sentence boundary.
+                chunks = chunk_graphemes(graphemes)
                 
                 # Process each chunk
                 for chunk in chunks:
