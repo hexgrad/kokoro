@@ -7,6 +7,7 @@ from transformers import AlbertConfig
 from typing import Dict, Optional, Union
 import json
 import torch
+import warnings
 
 class KModel(torch.nn.Module):
     '''
@@ -67,12 +68,26 @@ class KModel(torch.nn.Module):
             model = hf_hub_download(repo_id=repo_id, filename=KModel.MODEL_NAMES[repo_id])
         for key, state_dict in torch.load(model, map_location='cpu', weights_only=True).items():
             assert hasattr(self, key), key
-            try:
-                getattr(self, key).load_state_dict(state_dict)
-            except:
-                logger.debug(f"Did not load {key} from state_dict")
-                state_dict = {k[7:]: v for k, v in state_dict.items()}
-                getattr(self, key).load_state_dict(state_dict, strict=False)
+            self._load_component(key, state_dict)
+
+    def _load_component(self, key: str, state_dict: Dict) -> None:
+        module = getattr(self, key)
+        try:
+            module.load_state_dict(state_dict)
+        except Exception:
+            logger.debug(f"Did not load {key} from state_dict")
+            state_dict = {k[7:]: v for k, v in state_dict.items()}
+            result = module.load_state_dict(state_dict, strict=False)
+            if result.missing_keys:
+                # strict=False would otherwise leave these parameters at their
+                # random initialization with no signal, and the model emits noise.
+                warnings.warn(
+                    f"KModel: checkpoint is missing {len(result.missing_keys)} parameter(s) "
+                    f"for '{key}' (e.g. {result.missing_keys[:3]}); they keep their random "
+                    "initialization. The checkpoint may use a different weight_norm key format.",
+                    RuntimeWarning,
+                    stacklevel=3,
+                )
 
     @property
     def device(self):
