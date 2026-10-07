@@ -200,7 +200,7 @@ export class TextSplitterStream {
       if (stack.length === 0 && isSentenceTerminator(c)) {
         const currentSegment = buffer.slice(sentenceStart, i);
         // Skip splitting for likely numbered lists (e.g., "1." or "\n2.").
-        if (/(^|\n)\d+$/.test(currentSegment)) {
+        if (c === "." && /(^|\n)\d+$/.test(currentSegment)) {
           ++i;
           continue;
         }
@@ -209,7 +209,7 @@ export class TextSplitterStream {
 
         // If the terminator is not a newline and there's no extra whitespace,
         // we might be in the middle of a token (e.g., "$9.99"), so skip splitting.
-        if (i === nextNonSpace - 1 && c !== "\n") {
+        if (i === nextNonSpace - 1 && c !== "\n" && !"。？！".includes(c)) {
           ++i;
           continue;
         }

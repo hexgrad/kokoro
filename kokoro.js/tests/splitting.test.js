@@ -3,6 +3,22 @@ import { TextSplitterStream, split } from "../src/splitter.js";
 
 const TESTS = [
   {
+    name: "CJK sentence boundaries need no whitespace",
+    input: "你好。世界！好吗？再见。",
+    target: ["你好。", "世界！", "好吗？", "再见。"],
+  },
+  {
+    name: "Japanese sentences remain separate without spaces",
+    input: "これはテストです。次の文です。",
+    target: ["これはテストです。", "次の文です。"],
+  },
+  {
+    name: "A number before a full-width stop is not a numbered list",
+    input: "2025。下一句。",
+    target: ["2025。", "下一句。"],
+  },
+
+  {
     name: "Basic sentence splitting",
     input: "This is a test. This is another test.",
     target: ["This is a test.", "This is another test."],
