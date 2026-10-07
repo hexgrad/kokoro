@@ -234,7 +234,7 @@ export class TextSplitterStream {
         // --- URL/email protection ---
         // If the token appears to be a URL or email (contains "://" or "@")
         // and does not already end with a terminator, skip splitting.
-        if ((/https?[,:]\/\//.test(token) || token.includes("@")) && !isSentenceTerminator(token.at(-1))) {
+        if (c !== "\n" && (/https?[,:]\/\//.test(token) || token.includes("@")) && !isSentenceTerminator(token.at(-1))) {
           i = tokenStart + token.length;
           continue;
         }
