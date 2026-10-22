@@ -39,6 +39,7 @@ from IPython.display import display, Audio
 import soundfile as sf
 import torch
 # 🇺🇸 'a' => American English, 🇬🇧 'b' => British English
+# 🇩🇪 'd' => German de
 # 🇪🇸 'e' => Spanish es
 # 🇫🇷 'f' => French fr-fr
 # 🇮🇳 'h' => Hindi hi

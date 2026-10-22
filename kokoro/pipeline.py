@@ -11,6 +11,8 @@ import os
 ALIASES = {
     'en-us': 'a',
     'en-gb': 'b',
+    'de': 'd',
+    'de-de': 'd',
     'es': 'e',
     'fr-fr': 'f',
     'hi': 'h',
@@ -26,6 +28,7 @@ LANG_CODES = dict(
     b='British English',
 
     # espeak-ng
+    d='de',
     e='es',
     f='fr-fr',
     h='hi',
