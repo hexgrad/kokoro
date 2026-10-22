@@ -74,21 +74,33 @@ class CustomSTFT(nn.Module):
         )
 
         # Precompute inverse DFT
-        # Real iFFT formula => scale = 1/n_fft, doubling for bins 1..freq_bins-2 if n_fft even, etc.
-        # For simplicity, we won't do the "DC/nyquist not doubled" approach here. 
-        # If you want perfect real iSTFT, you can add that logic. 
-        # This version just yields good approximate reconstruction with Hann + typical overlap.
+        # Real iFFT formula => scale = 1/n_fft, with the onesided spectrum
+        # expanded to its full (Hermitian) counterpart: DC and, for an even
+        # n_fft, Nyquist are counted once, every other bin is counted twice.
         inv_scale = 1.0 / self.n_fft
         n = np.arange(self.n_fft)
         angle_t = 2 * np.pi * np.outer(n, k) / self.n_fft  # shape (n_fft, freq_bins)
         idft_cos = np.cos(angle_t).T  # => (freq_bins, n_fft)
         idft_sin = np.sin(angle_t).T  # => (freq_bins, n_fft)
 
+        # Scale per bin: 1 for DC/Nyquist, 2 for the interior bins
+        bin_scale = np.full(self.freq_bins, 2.0)
+        bin_scale[0] = 1.0
+        if self.n_fft % 2 == 0:
+            bin_scale[-1] = 1.0
+        bin_scale = bin_scale[:, None]  # (freq_bins, 1)
+
         # Multiply by window again for typical overlap-add
         # We also incorporate the scale factor 1/n_fft
         inv_window = window_tensor.numpy() * inv_scale
-        backward_real = idft_cos * inv_window  # (freq_bins, n_fft)
-        backward_imag = idft_sin * inv_window
+        backward_real = idft_cos * inv_window * bin_scale  # (freq_bins, n_fft)
+        backward_imag = idft_sin * inv_window * bin_scale
+
+        # Window envelope => sum of window**2 over the overlapping frames.
+        # It is used to normalize the overlap-added signal, like torch.istft does.
+        self.register_buffer(
+            "weight_envelope", torch.from_numpy((window_tensor.numpy() ** 2)[None, :].copy()).float().unsqueeze(1)
+        )
 
         # We'll implement iSTFT as real+imag conv_transpose with stride=hop.
         self.register_buffer(
@@ -174,12 +186,27 @@ class CustomSTFT(nn.Module):
         # sum => (B, 1, time)
         waveform = real_rec - imag_rec  # typical real iFFT has minus for imaginary part
 
+        # Normalize the overlap-added signal by the window envelope, like torch.istft does
+        envelope = F.conv_transpose1d(
+            torch.ones(
+                real_part.shape[0], 1, real_part.shape[-1],
+                dtype=real_part.dtype, device=real_part.device,
+            ),
+            self.weight_envelope,  # shape (1, 1, filter_length)
+            bias=None,
+            stride=self.hop_length,
+            padding=0,
+        )
+        waveform = waveform / envelope.clamp(min=1e-8)
+
         # If we used "center=True" in forward, we should remove pad
         if self.center:
             pad_len = self.n_fft // 2
             # Because of transposed convolution, total length might have extra samples
             # We remove `pad_len` from start & end if possible
-            waveform = waveform[..., pad_len:-pad_len]
+            waveform = waveform[..., pad_len:]
+            if length is None:
+                waveform = waveform[..., :-pad_len]
 
         # If a specific length is desired, clamp
         if length is not None:
