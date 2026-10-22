@@ -231,6 +231,65 @@ class KPipeline:
             yield ''.join(text).strip(), ''.join(ps).strip(), tks
 
     @staticmethod
+    def find_cut(graphemes: str, target: float) -> Optional[int]:
+        '''Where to cut non-English text in two, or None if it can't be cut.
+
+        Picks the cut closest to the target index, trying in order: after sentence
+        punctuation (and any closing quote or bracket), after clause
+        punctuation, at whitespace, after hiragana before a non-hiragana
+        character, and anywhere that doesn't split a run of ASCII letters and
+        digits. ASCII punctuation followed by an ASCII character other than a
+        space, such as 3.14 or example.com, is not a cut.
+        '''
+        n = len(graphemes)
+        closers = ')]"\'”’」』）》】'
+        def after_marks(pattern):
+            cuts = []
+            for m in re.finditer(pattern, graphemes):
+                i = m.end()
+                if m.group().isascii() and i < n and graphemes[i].isascii() and not graphemes[i].isspace() and graphemes[i] not in closers:
+                    continue
+                while i < n and graphemes[i] in closers:
+                    i += 1
+                cuts.append(i)
+            return cuts
+        def hiragana(c):
+            return '\u3041' <= c <= '\u309f'
+        def ascii_alnum(c):
+            return c.isascii() and c.isalnum()
+        tiers = [
+            after_marks(r'[.!?…。！？।]+'),
+            after_marks(r'[,;:—、，；：]+'),
+            [m.start() for m in re.finditer(r'\s+', graphemes)],
+            [i for i in range(1, n) if hiragana(graphemes[i-1]) and not hiragana(graphemes[i])],
+            [i for i in range(1, n) if not (ascii_alnum(graphemes[i-1]) and ascii_alnum(graphemes[i]))],
+        ]
+        for cuts in tiers:
+            cuts = [i for i in cuts if graphemes[:i].strip() and graphemes[i:].strip()]
+            if cuts:
+                return min(cuts, key=lambda i: abs(i - target))
+        return None
+
+    def g2p_within_limit(self, graphemes: str) -> Generator[Tuple[str, str], None, None]:
+        '''Yield (graphemes, phonemes) pieces of non-English text, each with at
+        most 510 phonemes. Text with more is cut where its first of
+        ceil(len(ps) / 510) equal parts would end (see find_cut), and both sides
+        go through G2P again, so no text is dropped.
+        '''
+        ps, _ = self.g2p(graphemes)
+        if not ps or len(ps) <= 510:
+            yield graphemes, ps
+            return
+        parts = -(-len(ps) // 510)
+        cut = KPipeline.find_cut(graphemes, len(graphemes) / parts)
+        if cut is None:
+            logger.warning(f'Truncating len(ps) == {len(ps)} > 510')
+            yield graphemes, ps[:510]
+            return
+        yield from self.g2p_within_limit(graphemes[:cut].strip())
+        yield from self.g2p_within_limit(graphemes[cut:].strip())
+
+    @staticmethod
     def infer(
         model: KModel,
         ps: str,
@@ -431,12 +490,8 @@ class KPipeline:
                     if not chunk.strip():
                         continue
                         
-                    ps, _ = self.g2p(chunk)
-                    if not ps:
-                        continue
-                    elif len(ps) > 510:
-                        logger.warning(f'Truncating len(ps) == {len(ps)} > 510')
-                        ps = ps[:510]
-                        
-                    output = KPipeline.infer(model, ps, pack, speed) if model else None
-                    yield self.Result(graphemes=chunk, phonemes=ps, output=output, text_index=graphemes_index)
+                    for gs, ps in self.g2p_within_limit(chunk):
+                        if not ps:
+                            continue
+                        output = KPipeline.infer(model, ps, pack, speed) if model else None
+                        yield self.Result(graphemes=gs, phonemes=ps, output=output, text_index=graphemes_index)
