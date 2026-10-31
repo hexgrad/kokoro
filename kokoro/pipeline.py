@@ -1,3 +1,4 @@
+from .foreign import CJK_PUNCTUATION, ScriptFallback
 from .model import KModel
 from dataclasses import dataclass
 from huggingface_hub import hf_hub_download
@@ -115,9 +116,12 @@ class KPipeline:
         self.voices = {}
         if lang_code in 'ab':
             try:
-                fallback = espeak.EspeakFallback(british=lang_code=='b')
+                fallback = ScriptFallback(
+                    british=lang_code=='b',
+                    zh_version=None if repo_id.endswith('/Kokoro-82M') else '1.1'
+                )
             except Exception as e:
-                logger.warning("EspeakFallback not Enabled: OOD words will be skipped")
+                logger.warning("ScriptFallback not Enabled: OOD words will be skipped")
                 logger.warning({str(e)})
                 fallback = None
             self.g2p = en.G2P(trf=trf, british=lang_code=='b', fallback=fallback, unk='')
@@ -383,7 +387,7 @@ class KPipeline:
             # English processing (unchanged)
             if self.lang_code in 'ab':
                 logger.debug(f"Processing English text: {graphemes[:50]}{'...' if len(graphemes) > 50 else ''}")
-                _, tokens = self.g2p(graphemes)
+                _, tokens = self.g2p(graphemes.translate(CJK_PUNCTUATION))
                 for gs, ps, tks in self.en_tokenize(tokens):
                     if not ps:
                         continue
