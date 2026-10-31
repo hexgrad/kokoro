@@ -25,6 +25,8 @@ for i, (gs, ps, audio) in enumerate(generator):
 ```
 Under the hood, `kokoro` uses [`misaki`](https://pypi.org/project/misaki/), a G2P library at https://github.com/hexgrad/misaki
 
+Each pipeline attempts to read text in other scripts with the other language's G2P. Chinese needs `pip install misaki[zh]` and Japanese needs `pip install misaki[ja]`.
+
 ### Advanced Usage
 You can run this advanced cell on [Google Colab](https://colab.research.google.com/).
 ```py
