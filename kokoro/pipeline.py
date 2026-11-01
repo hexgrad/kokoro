@@ -1,3 +1,4 @@
+from .foreign import CJK_PUNCTUATION, ForeignScripts
 from .model import KModel
 from dataclasses import dataclass
 from huggingface_hub import hf_hub_download
@@ -113,6 +114,8 @@ class KPipeline:
                                        Try setting device='cpu' or check CUDA installation.""")
                 raise
         self.voices = {}
+        zh_version = None if repo_id.endswith('/Kokoro-82M') else '1.1'
+        self.foreign = ForeignScripts(lang_code, zh_version=zh_version, en_callable=en_callable)
         if lang_code in 'ab':
             try:
                 fallback = espeak.EspeakFallback(british=lang_code=='b')
@@ -131,10 +134,7 @@ class KPipeline:
         elif lang_code == 'z':
             try:
                 from misaki import zh
-                self.g2p = zh.ZHG2P(
-                    version=None if repo_id.endswith('/Kokoro-82M') else '1.1',
-                    en_callable=en_callable
-                )
+                self.g2p = zh.ZHG2P(version=zh_version, en_callable=en_callable)
             except ImportError:
                 logger.error("You need to `pip install misaki[zh]` to use lang_code='z'")
                 raise
@@ -197,6 +197,35 @@ class KPipeline:
             if next_count - len(KPipeline.tokens_to_ps(tokens[:z])) <= 510:
                 return z
         return len(tokens)
+
+    def en_g2p_tokens(self, graphemes: str) -> List[en.MToken]:
+        tokens = []
+        for segment, language in self.foreign.split(graphemes):
+            if language is not None:
+                # One token per word, so long runs can still be chunked
+                words = self.foreign.phonemize(segment, language).split()
+                tokens.extend(en.MToken(
+                    text=segment if i == 0 else '', tag='', whitespace=' ' if i < len(words) - 1 else '', phonemes=w
+                ) for i, w in enumerate(words))
+                continue
+            stripped = segment.lstrip()
+            if tokens:
+                tokens[-1].whitespace += segment[:len(segment) - len(stripped)]
+            if stripped:
+                tokens.extend(self.g2p(stripped)[1])
+        return tokens
+
+    def g2p_phonemes(self, graphemes: str) -> str:
+        ps, previous = '', ''
+        for segment, language in self.foreign.split(graphemes):
+            p = (self.g2p(segment)[0] if language is None else self.foreign.phonemize(segment, language)).strip()
+            # Keep the text's spacing, and separate words of different scripts written without a space
+            boundary = previous[-1:] + segment[:1]
+            if ps and p and (any(c.isspace() for c in boundary) or (boundary.isalpha() and len(boundary) == 2)):
+                ps += ' '
+            ps += p
+            previous = segment
+        return ps
 
     @staticmethod
     def tokens_to_text(tokens: List[en.MToken]) -> str:
@@ -379,11 +408,13 @@ class KPipeline:
         for graphemes_index, graphemes in enumerate(text):
             if not graphemes.strip():  # Skip empty segments
                 continue
+            if self.lang_code not in 'jz':
+                graphemes = graphemes.translate(CJK_PUNCTUATION)
                 
             # English processing (unchanged)
             if self.lang_code in 'ab':
                 logger.debug(f"Processing English text: {graphemes[:50]}{'...' if len(graphemes) > 50 else ''}")
-                _, tokens = self.g2p(graphemes)
+                tokens = self.en_g2p_tokens(graphemes)
                 for gs, ps, tks in self.en_tokenize(tokens):
                     if not ps:
                         continue
@@ -431,7 +462,7 @@ class KPipeline:
                     if not chunk.strip():
                         continue
                         
-                    ps, _ = self.g2p(chunk)
+                    ps = self.g2p_phonemes(chunk)
                     if not ps:
                         continue
                     elif len(ps) > 510:
