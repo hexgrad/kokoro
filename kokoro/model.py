@@ -49,7 +49,7 @@ class KModel(torch.nn.Module):
                 config = json.load(r)
                 logger.debug(f"Loaded config: {config}")
         self.vocab = config['vocab']
-        self.bert = CustomAlbert(AlbertConfig(vocab_size=config['n_token'], **config['plbert']))
+        self.bert = CustomAlbert(AlbertConfig(vocab_size=config['n_token'], **config['plbert']), add_pooling_layer=False)
         self.bert_encoder = torch.nn.Linear(self.bert.config.hidden_size, config['hidden_dim'])
         self.context_length = self.bert.config.max_position_embeddings
         self.predictor = ProsodyPredictor(
