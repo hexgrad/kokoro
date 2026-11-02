@@ -104,6 +104,7 @@ class KModel(torch.nn.Module):
         ref_s: torch.FloatTensor,
         speed: float = 1
     ) -> tuple[torch.FloatTensor, torch.LongTensor]:
+        t_en = self.text_encoder(input_ids)
         bert_dur = self.bert(input_ids)
         d_en = self.bert_encoder(bert_dur).transpose(-1, -2)
         s = ref_s[:, 128:]
@@ -116,7 +117,6 @@ class KModel(torch.nn.Module):
         indices = torch.repeat_interleave(torch.arange(input_ids.shape[1], device=self.device), pred_dur)
         en = d.transpose(-1, -2)[..., indices]
         F0_pred, N_pred = self.predictor.F0Ntrain(en, s)
-        t_en = self.text_encoder(input_ids)
         asr = t_en[..., indices]
         audio = self.decoder(asr, F0_pred, N_pred, ref_s[:, :128]).squeeze()
         return audio, pred_dur
