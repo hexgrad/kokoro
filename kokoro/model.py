@@ -3,6 +3,7 @@ from .modules import CustomAlbert, ProsodyPredictor, TextEncoder
 from dataclasses import dataclass
 from huggingface_hub import hf_hub_download
 from loguru import logger
+from torch.nn.utils import parametrize
 from transformers import AlbertConfig
 from typing import Dict, Optional, Union
 import json
@@ -65,7 +66,13 @@ class KModel(torch.nn.Module):
         )
         if not model:
             model = hf_hub_download(repo_id=repo_id, filename=KModel.MODEL_NAMES[repo_id])
-        for key, state_dict in torch.load(model, map_location='cpu', weights_only=True).items():
+        checkpoint = torch.load(model, map_location='cpu', weights_only=True)
+        # Weight norm only matters for training, so it's folded into the weights to save recomputing
+        # them on every call. A checkpoint saved from a folded model has no weight norm to load.
+        has_weight_norm = any('weight_g' in k or 'parametrizations' in k for sd in checkpoint.values() for k in sd)
+        if not has_weight_norm:
+            self._fold_weight_norm()
+        for key, state_dict in checkpoint.items():
             assert hasattr(self, key), key
             try:
                 getattr(self, key).load_state_dict(state_dict)
@@ -73,6 +80,13 @@ class KModel(torch.nn.Module):
                 logger.debug(f"Did not load {key} from state_dict")
                 state_dict = {k[7:]: v for k, v in state_dict.items()}
                 getattr(self, key).load_state_dict(state_dict, strict=False)
+        if has_weight_norm:
+            self._fold_weight_norm()
+
+    def _fold_weight_norm(self):
+        for module in self.modules():
+            if parametrize.is_parametrized(module, 'weight'):
+                parametrize.remove_parametrizations(module, 'weight')
 
     @property
     def device(self):
