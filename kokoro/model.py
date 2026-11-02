@@ -115,14 +115,14 @@ class KModel(torch.nn.Module):
         return_output: bool = False
     ) -> Union['KModel.Output', torch.FloatTensor]:
         input_ids = list(filter(lambda i: i is not None, map(lambda p: self.vocab.get(p), phonemes)))
-        logger.debug(f"phonemes: {phonemes} -> input_ids: {input_ids}")
+        logger.debug("phonemes: {} -> input_ids: {}", phonemes, input_ids)
         assert len(input_ids)+2 <= self.context_length, (len(input_ids)+2, self.context_length)
         input_ids = torch.LongTensor([[0, *input_ids, 0]]).to(self.device)
         ref_s = ref_s.to(self.device)
         audio, pred_dur = self.forward_with_tokens(input_ids, ref_s, speed)
         audio = audio.squeeze().cpu()
         pred_dur = pred_dur.cpu() if pred_dur is not None else None
-        logger.debug(f"pred_dur: {pred_dur}")
+        logger.debug("pred_dur: {}", pred_dur)
         return self.Output(audio=audio, pred_dur=pred_dur) if return_output else audio
 
 class KModelForONNX(torch.nn.Module):
