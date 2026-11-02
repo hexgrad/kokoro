@@ -1,4 +1,3 @@
-from attr import attr
 import numpy as np
 import torch
 import torch.nn as nn
@@ -134,8 +133,7 @@ class CustomSTFT(nn.Module):
         phase = torch.atan2(imag_out, real_out)
         # Handle the case where imag_out is 0 and real_out is negative to correct ONNX atan2 to match PyTorch
         # In this case, PyTorch returns pi, ONNX returns -pi
-        correction_mask = (imag_out == 0) & (real_out < 0)
-        phase[correction_mask] = torch.pi
+        phase = torch.where((imag_out == 0) & (real_out < 0), torch.pi, phase)
         return magnitude, phase
 
 

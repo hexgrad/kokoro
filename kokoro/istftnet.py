@@ -84,19 +84,23 @@ class TorchSTFT(nn.Module):
         self.hop_length = hop_length
         self.win_length = win_length
         assert window == 'hann', window
-        self.window = torch.hann_window(win_length, periodic=True, dtype=torch.float32)
+
+    def _window(self, device):
+        # Built on the input's device: a stored CPU window was copied over on every call,
+        # and a buffer would be cast along with the model by model.half().
+        return torch.hann_window(self.win_length, periodic=True, dtype=torch.float32, device=device)
 
     def transform(self, input_data):
         forward_transform = torch.stft(
             input_data,
-            self.filter_length, self.hop_length, self.win_length, window=self.window.to(input_data.device),
+            self.filter_length, self.hop_length, self.win_length, window=self._window(input_data.device),
             return_complex=True)
         return torch.abs(forward_transform), torch.angle(forward_transform)
 
     def inverse(self, magnitude, phase):
         inverse_transform = torch.istft(
             magnitude * torch.exp(phase * 1j),
-            self.filter_length, self.hop_length, self.win_length, window=self.window.to(magnitude.device))
+            self.filter_length, self.hop_length, self.win_length, window=self._window(magnitude.device))
         return inverse_transform.unsqueeze(-2)  # unsqueeze to stay consistent with conv_transpose1d implementation
 
     def forward(self, input_data):
@@ -320,7 +324,7 @@ class AdainResBlk1d(nn.Module):
 
     def forward(self, x, s):
         out = self._residual(x, s)
-        out = (out + self._shortcut(x)) * torch.rsqrt(torch.tensor(2))
+        out = (out + self._shortcut(x)) * math.sqrt(0.5)
         return out
 
 
