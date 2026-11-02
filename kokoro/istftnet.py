@@ -307,10 +307,10 @@ class AdainResBlk1d(nn.Module):
             self.conv1x1 = weight_norm(nn.Conv1d(dim_in, dim_out, 1, 1, 0, bias=False))
 
     def _shortcut(self, x):
-        x = self.upsample(x)
+        # Same result as upsampling first, on half as many samples
         if self.learned_sc:
             x = self.conv1x1(x)
-        return x
+        return self.upsample(x)
 
     def _residual(self, x, s):
         x = self.norm1(x, s)
