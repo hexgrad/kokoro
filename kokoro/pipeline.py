@@ -266,7 +266,7 @@ class KPipeline:
         if model and voice is None:
             raise ValueError('Specify a voice: pipeline.generate_from_tokens(..., voice="af_heart")')
         
-        pack = self.load_voice(voice).to(model.device) if model else None
+        pack = self.load_voice(voice) if model else None
 
         # Handle raw phoneme string
         if isinstance(tokens, str):
@@ -369,7 +369,7 @@ class KPipeline:
         model = model or self.model
         if model and voice is None:
             raise ValueError('Specify a voice: en_us_pipeline(text="Hello world!", voice="af_heart")')
-        pack = self.load_voice(voice).to(model.device) if model else None
+        pack = self.load_voice(voice) if model else None
         
         # Convert input to list of segments
         if isinstance(text, str):

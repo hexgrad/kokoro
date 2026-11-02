@@ -2,7 +2,6 @@
 from .istftnet import AdainResBlk1d
 from torch.nn.utils.parametrizations import weight_norm
 from transformers import AlbertModel
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -47,26 +46,13 @@ class TextEncoder(nn.Module):
             ))
         self.lstm = nn.LSTM(channels, channels//2, 1, batch_first=True, bidirectional=True)
 
-    def forward(self, x, input_lengths, m):
+    def forward(self, x):
         x = self.embedding(x)  # [B, T, emb]
         x = x.transpose(1, 2)  # [B, emb, T]
-        m = m.unsqueeze(1)
-        x.masked_fill_(m, 0.0)
         for c in self.cnn:
             x = c(x)
-            x.masked_fill_(m, 0.0)
-        x = x.transpose(1, 2)  # [B, T, chn]
-        lengths = input_lengths if input_lengths.device == torch.device('cpu') else input_lengths.to('cpu')
-        x = nn.utils.rnn.pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
-        self.lstm.flatten_parameters()
-        x, _ = self.lstm(x)
-        x, _ = nn.utils.rnn.pad_packed_sequence(x, batch_first=True)
-        x = x.transpose(-1, -2)
-        x_pad = torch.zeros([x.shape[0], x.shape[1], m.shape[-1]], device=x.device)
-        x_pad[:, :, :x.shape[-1]] = x
-        x = x_pad
-        x.masked_fill_(m, 0.0)
-        return x
+        x, _ = self.lstm(x.transpose(1, 2))
+        return x.transpose(-1, -2)
 
 
 class AdaLayerNorm(nn.Module):
@@ -77,15 +63,10 @@ class AdaLayerNorm(nn.Module):
         self.fc = nn.Linear(style_dim, channels*2)
 
     def forward(self, x, s):
-        x = x.transpose(-1, -2)
-        x = x.transpose(1, -1)
-        h = self.fc(s)
-        h = h.view(h.size(0), h.size(1), 1)
-        gamma, beta = torch.chunk(h, chunks=2, dim=1)
-        gamma, beta = gamma.transpose(1, -1), beta.transpose(1, -1)
+        # x: [B, T, chn]
+        gamma, beta = torch.chunk(self.fc(s).unsqueeze(1), chunks=2, dim=-1)
         x = F.layer_norm(x, (self.channels,), eps=self.eps)
-        x = (1 + gamma) * x + beta
-        return x.transpose(1, -1).transpose(-1, -2)
+        return (1 + gamma) * x + beta
 
 
 class ProsodyPredictor(nn.Module):
@@ -105,21 +86,6 @@ class ProsodyPredictor(nn.Module):
         self.N.append(AdainResBlk1d(d_hid // 2, d_hid // 2, style_dim, dropout_p=dropout))
         self.F0_proj = nn.Conv1d(d_hid // 2, 1, 1, 1, 0)
         self.N_proj = nn.Conv1d(d_hid // 2, 1, 1, 1, 0)
-
-    def forward(self, texts, style, text_lengths, alignment, m):
-        d = self.text_encoder(texts, style, text_lengths, m)
-        m = m.unsqueeze(1)
-        lengths = text_lengths if text_lengths.device == torch.device('cpu') else text_lengths.to('cpu')
-        x = nn.utils.rnn.pack_padded_sequence(d, lengths, batch_first=True, enforce_sorted=False)
-        self.lstm.flatten_parameters()
-        x, _ = self.lstm(x)
-        x, _ = nn.utils.rnn.pad_packed_sequence(x, batch_first=True)
-        x_pad = torch.zeros([x.shape[0], m.shape[-1], x.shape[-1]], device=x.device)
-        x_pad[:, :x.shape[1], :] = x
-        x = x_pad
-        duration = self.duration_proj(nn.functional.dropout(x, 0.5, training=False))
-        en = (d.transpose(-1, -2) @ alignment)
-        return duration.squeeze(-1), en
 
     def F0Ntrain(self, x, s):
         x, _ = self.shared(x.transpose(-1, -2))
@@ -145,35 +111,15 @@ class DurationEncoder(nn.Module):
         self.d_model = d_model
         self.sty_dim = sty_dim
 
-    def forward(self, x, style, text_lengths, m):
-        masks = m
-        x = x.permute(2, 0, 1)
-        s = style.expand(x.shape[0], x.shape[1], -1)
-        x = torch.cat([x, s], axis=-1)
-        x.masked_fill_(masks.unsqueeze(-1).transpose(0, 1), 0.0)
-        x = x.transpose(0, 1)
-        x = x.transpose(-1, -2)
+    def forward(self, x, style):
+        s = style.unsqueeze(1).expand(-1, x.shape[-1], -1)
+        x = torch.cat([x.transpose(1, 2), s], axis=-1)  # [B, T, chn + sty]
         for block in self.lstms:
             if isinstance(block, AdaLayerNorm):
-                x = block(x.transpose(-1, -2), style).transpose(-1, -2)
-                x = torch.cat([x, s.permute(1, 2, 0)], axis=1)
-                x.masked_fill_(masks.unsqueeze(-1).transpose(-1, -2), 0.0)
+                x = torch.cat([block(x, style), s], axis=-1)
             else:
-                lengths = text_lengths if text_lengths.device == torch.device('cpu') else text_lengths.to('cpu')
-                x = x.transpose(-1, -2)
-                x = nn.utils.rnn.pack_padded_sequence(
-                    x, lengths, batch_first=True, enforce_sorted=False)
-                block.flatten_parameters()
                 x, _ = block(x)
-                x, _ = nn.utils.rnn.pad_packed_sequence(
-                    x, batch_first=True)
-                x = F.dropout(x, p=self.dropout, training=False)
-                x = x.transpose(-1, -2)
-                x_pad = torch.zeros([x.shape[0], x.shape[1], m.shape[-1]], device=x.device)
-                x_pad[:, :, :x.shape[-1]] = x
-                x = x_pad
-
-        return x.transpose(-1, -2)
+        return x
 
 
 # https://github.com/yl4579/StyleTTS2/blob/main/Utils/PLBERT/util.py

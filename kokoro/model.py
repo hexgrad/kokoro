@@ -3,6 +3,7 @@ from .modules import CustomAlbert, ProsodyPredictor, TextEncoder
 from dataclasses import dataclass
 from huggingface_hub import hf_hub_download
 from loguru import logger
+from torch.nn.utils import parametrize
 from transformers import AlbertConfig
 from typing import Dict, Optional, Union
 import json
@@ -48,7 +49,7 @@ class KModel(torch.nn.Module):
                 config = json.load(r)
                 logger.debug(f"Loaded config: {config}")
         self.vocab = config['vocab']
-        self.bert = CustomAlbert(AlbertConfig(vocab_size=config['n_token'], **config['plbert']))
+        self.bert = CustomAlbert(AlbertConfig(vocab_size=config['n_token'], **config['plbert']), add_pooling_layer=False)
         self.bert_encoder = torch.nn.Linear(self.bert.config.hidden_size, config['hidden_dim'])
         self.context_length = self.bert.config.max_position_embeddings
         self.predictor = ProsodyPredictor(
@@ -65,7 +66,13 @@ class KModel(torch.nn.Module):
         )
         if not model:
             model = hf_hub_download(repo_id=repo_id, filename=KModel.MODEL_NAMES[repo_id])
-        for key, state_dict in torch.load(model, map_location='cpu', weights_only=True).items():
+        checkpoint = torch.load(model, map_location='cpu', weights_only=True)
+        # Weight norm only matters for training, so it's folded into the weights to save recomputing
+        # them on every call. A checkpoint saved from a folded model has no weight norm to load.
+        has_weight_norm = any('weight_g' in k or 'parametrizations' in k for sd in checkpoint.values() for k in sd)
+        if not has_weight_norm:
+            self._fold_weight_norm()
+        for key, state_dict in checkpoint.items():
             assert hasattr(self, key), key
             try:
                 getattr(self, key).load_state_dict(state_dict)
@@ -73,6 +80,13 @@ class KModel(torch.nn.Module):
                 logger.debug(f"Did not load {key} from state_dict")
                 state_dict = {k[7:]: v for k, v in state_dict.items()}
                 getattr(self, key).load_state_dict(state_dict, strict=False)
+        if has_weight_norm:
+            self._fold_weight_norm()
+
+    def _fold_weight_norm(self):
+        for module in self.modules():
+            if parametrize.is_parametrized(module, 'weight'):
+                parametrize.remove_parametrizations(module, 'weight')
 
     @property
     def device(self):
@@ -90,31 +104,20 @@ class KModel(torch.nn.Module):
         ref_s: torch.FloatTensor,
         speed: float = 1
     ) -> tuple[torch.FloatTensor, torch.LongTensor]:
-        input_lengths = torch.full(
-            (input_ids.shape[0],), 
-            input_ids.shape[-1], 
-            device=input_ids.device,
-            dtype=torch.long
-        )
-
-        text_mask = torch.arange(input_lengths.max()).unsqueeze(0).expand(input_lengths.shape[0], -1).type_as(input_lengths)
-        text_mask = torch.gt(text_mask+1, input_lengths.unsqueeze(1)).to(self.device)
-        bert_dur = self.bert(input_ids, attention_mask=(~text_mask).int())
+        t_en = self.text_encoder(input_ids)
+        bert_dur = self.bert(input_ids)
         d_en = self.bert_encoder(bert_dur).transpose(-1, -2)
         s = ref_s[:, 128:]
-        d = self.predictor.text_encoder(d_en, s, input_lengths, text_mask)
+        d = self.predictor.text_encoder(d_en, s)
         x, _ = self.predictor.lstm(d)
         duration = self.predictor.duration_proj(x)
         duration = torch.sigmoid(duration).sum(axis=-1) / speed
-        pred_dur = torch.round(duration).clamp(min=1).long().squeeze()
+        pred_dur = torch.round(duration).clamp(min=1).long().squeeze(0)
+        # indices[i] is the token spoken at frame i
         indices = torch.repeat_interleave(torch.arange(input_ids.shape[1], device=self.device), pred_dur)
-        pred_aln_trg = torch.zeros((input_ids.shape[1], indices.shape[0]), device=self.device)
-        pred_aln_trg[indices, torch.arange(indices.shape[0])] = 1
-        pred_aln_trg = pred_aln_trg.unsqueeze(0).to(self.device)
-        en = d.transpose(-1, -2) @ pred_aln_trg
+        en = d.transpose(-1, -2)[..., indices]
         F0_pred, N_pred = self.predictor.F0Ntrain(en, s)
-        t_en = self.text_encoder(input_ids, input_lengths, text_mask)
-        asr = t_en @ pred_aln_trg
+        asr = t_en[..., indices]
         audio = self.decoder(asr, F0_pred, N_pred, ref_s[:, :128]).squeeze()
         return audio, pred_dur
 
@@ -126,14 +129,14 @@ class KModel(torch.nn.Module):
         return_output: bool = False
     ) -> Union['KModel.Output', torch.FloatTensor]:
         input_ids = list(filter(lambda i: i is not None, map(lambda p: self.vocab.get(p), phonemes)))
-        logger.debug(f"phonemes: {phonemes} -> input_ids: {input_ids}")
+        logger.debug("phonemes: {} -> input_ids: {}", phonemes, input_ids)
         assert len(input_ids)+2 <= self.context_length, (len(input_ids)+2, self.context_length)
         input_ids = torch.LongTensor([[0, *input_ids, 0]]).to(self.device)
         ref_s = ref_s.to(self.device)
         audio, pred_dur = self.forward_with_tokens(input_ids, ref_s, speed)
         audio = audio.squeeze().cpu()
         pred_dur = pred_dur.cpu() if pred_dur is not None else None
-        logger.debug(f"pred_dur: {pred_dur}")
+        logger.debug("pred_dur: {}", pred_dur)
         return self.Output(audio=audio, pred_dur=pred_dur) if return_output else audio
 
 class KModelForONNX(torch.nn.Module):
