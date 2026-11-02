@@ -107,14 +107,12 @@ class KModel(torch.nn.Module):
         duration = self.predictor.duration_proj(x)
         duration = torch.sigmoid(duration).sum(axis=-1) / speed
         pred_dur = torch.round(duration).clamp(min=1).long().squeeze()
+        # indices[i] is the token spoken at frame i
         indices = torch.repeat_interleave(torch.arange(input_ids.shape[1], device=self.device), pred_dur)
-        pred_aln_trg = torch.zeros((input_ids.shape[1], indices.shape[0]), device=self.device)
-        pred_aln_trg[indices, torch.arange(indices.shape[0])] = 1
-        pred_aln_trg = pred_aln_trg.unsqueeze(0).to(self.device)
-        en = d.transpose(-1, -2) @ pred_aln_trg
+        en = d.transpose(-1, -2)[..., indices]
         F0_pred, N_pred = self.predictor.F0Ntrain(en, s)
         t_en = self.text_encoder(input_ids, input_lengths, text_mask)
-        asr = t_en @ pred_aln_trg
+        asr = t_en[..., indices]
         audio = self.decoder(asr, F0_pred, N_pred, ref_s[:, :128]).squeeze()
         return audio, pred_dur
 
