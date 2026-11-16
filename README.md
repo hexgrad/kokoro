@@ -127,3 +127,32 @@ dependencies:
 - 🪽 Kokoro is a Japanese word that translates to "heart" or "spirit". Kokoro is also a [character in the Terminator franchise](https://terminator.fandom.com/wiki/Kokoro) along with [Misaki](https://github.com/hexgrad/misaki?tab=readme-ov-file#acknowledgements).
 
 <img src="https://static0.gamerantimages.com/wordpress/wp-content/uploads/2024/08/terminator-zero-41-1.jpg" width="400" alt="kokoro" />
+# Optional inference preparation
+
+After loading a checkpoint, explicitly freeze weight normalization for repeated
+inference with `model.eval().prepare_for_inference()`. For a pipeline, use
+`pipeline.model.prepare_for_inference()` after pipeline construction. This
+computes normalized weights once rather than before every layer invocation.
+
+The conversion is one-way: it replaces legacy `weight_g`/`weight_v` or
+parametrized weight-normalization parameters with `weight` in the state
+dictionary. Load checkpoints first. Construct a fresh model for training
+or loading another checkpoint. Preparation is idempotent and does not change
+the default loading or inference behavior.
+
+For an experimental ROCm fp32 backend, install the optional Triton dependency
+(`pip install 'kokoro[rocm]'`) and call
+`pipeline.model.enable_rocm_inference()`. The backend is explicitly limited to
+gfx1201, the architecture validated for this implementation. CPU, other GPU
+architectures, and non-fp32 models are rejected at enable time. Batch sizes,
+layouts, short inputs and gradient-enabled execution unsupported by the kernels
+fall back to existing PyTorch operations. Default inference is unchanged.
+
+This opt-in conversion freezes normalized weights and enables fused adaptive
+affine/Snake operations plus implicit Conv1d for selected channels 128/256,
+kernel sizes 3/7/11 and dilations 1/3/5. Kernel-11 at 256 channels uses per-tap
+GEMMs. Load checkpoints before conversion. Training or loading new checkpoints
+requires a fresh instance. No fp16, TF32, batching or inference-output caching
+is introduced. The GPU kernels live in `kokoro/backends/`; Triton compiles them
+at runtime. No changes to AOTriton, PyTorch or MIOpen are required.
+
