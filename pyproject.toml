@@ -29,6 +29,9 @@ dependencies = [
 [project.scripts]
 kokoro = "kokoro.__main__:main"
 
+[project.optional-dependencies]
+rocm = ["triton>=3.0; platform_system == 'Linux'"]
+
 [tool.hatch.build.targets.wheel]
 only-include = ["kokoro"]
 only-packages = true

@@ -78,6 +78,20 @@ class KModel(torch.nn.Module):
     def device(self):
         return self.bert.device
 
+    def prepare_for_inference(self):
+        """Freeze weight normalization after loading and calling eval().
+
+        This is an explicit one-way conversion for inference. Checkpoint loading
+        and training require a fresh model. Returns self for chaining.
+        """
+        from .inference import prepare_for_inference
+        return prepare_for_inference(self)
+
+    def enable_rocm_inference(self):
+        """Enable the optional fp32 gfx1201 inference backend after eval()."""
+        from .backends.rocm import enable_rocm
+        return enable_rocm(self)
+
     @dataclass
     class Output:
         audio: torch.FloatTensor
