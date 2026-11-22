@@ -114,69 +114,30 @@ CHOICES = {
 '🇬🇧 🚹 Lewis': 'bm_lewis',
 '🇬🇧 🚹 Daniel': 'bm_daniel',
 }
-for v in CHOICES.values():
-    pipelines[v[0]].load_voice(v)
 
-TOKEN_NOTE = '''
-💡 Customize pronunciation with Markdown link syntax and /slashes/ like `[Kokoro](/kˈOkəɹO/)`
-
-💬 To adjust intonation, try punctuation `;:,.!?—…"()“”` or stress `ˈ` and `ˌ`
-
-⬇️ Lower stress `[1 level](-1)` or `[2 levels](-2)`
-
-⬆️ Raise stress 1 level `[or](+2)` 2 levels (only works on less stressed, usually short words)
-'''
-
-with gr.Blocks() as generate_tab:
-    out_audio = gr.Audio(label='Output Audio', interactive=False, streaming=False, autoplay=True)
-    generate_btn = gr.Button('Generate', variant='primary')
-    with gr.Accordion('Output Tokens', open=True):
-        out_ps = gr.Textbox(interactive=False, show_label=False, info='Tokens used to generate the audio, up to 510 context length.')
-        tokenize_btn = gr.Button('Tokenize', variant='secondary')
-        gr.Markdown(TOKEN_NOTE)
-        predict_btn = gr.Button('Predict', variant='secondary', visible=False)
-
-STREAM_NOTE = ['⚠️ There is an unknown Gradio bug that might yield no audio the first time you click `Stream`.']
-STREAM_NOTE = '\n\n'.join(STREAM_NOTE)
-
-with gr.Blocks() as stream_tab:
-    out_stream = gr.Audio(label='Output Audio Stream', interactive=False, streaming=True, autoplay=True)
-    with gr.Row():
-        stream_btn = gr.Button('Stream', variant='primary')
-        stop_btn = gr.Button('Stop', variant='stop')
-    with gr.Accordion('Note', open=True):
-        gr.Markdown(STREAM_NOTE)
-        gr.DuplicateButton()
-
-API_OPEN = True
-with gr.Blocks() as app:
+with gr.Blocks() as demo:
+    gr.Markdown("""
+    # Kokoro 82M TTS Demo
+    
+    [![Opire](https://img.shields.io/badge/Opire-Fund%20German%20Language-blue?style=flat-square&logo=data:image/svg+xml;base64,)](https://opire.dev/kokoro)
+    
+    Add funding/donation for German language support via [Opire](https://opire.dev/kokoro).
+    """)
+    
     with gr.Row():
         with gr.Column():
-            text = gr.Textbox(label='Input Text', info=f"Arbitrarily many characters supported")
-            with gr.Row():
-                voice = gr.Dropdown(list(CHOICES.items()), value='af_heart', label='Voice', info='Quality and availability vary by language')
-                use_gpu = gr.Dropdown(
-                    [('ZeroGPU 🚀', True), ('CPU 🐌', False)],
-                    value=CUDA_AVAILABLE,
-                    label='Hardware',
-                    info='GPU is usually faster, but has a usage quota',
-                    interactive=CUDA_AVAILABLE
-                )
-            speed = gr.Slider(minimum=0.5, maximum=2, value=1, step=0.1, label='Speed')
-            random_btn = gr.Button('🎲 Random Quote 💬', variant='secondary')
-            with gr.Row():
-                gatsby_btn = gr.Button('🥂 Gatsby 📕', variant='secondary')
-                frankenstein_btn = gr.Button('💀 Frankenstein 📗', variant='secondary')
+            text_input = gr.Textbox(label="Input Text", value=get_random_quote())
+            voice_select = gr.Dropdown(label="Voice", choices=list(CHOICES.keys()), value='🇺🇸 🚺 Heart ❤️')
+            speed_slider = gr.Slider(label="Speed", minimum=0.5, maximum=2.0, value=1.0, step=0.1)
+            btn = gr.Button("Generate", variant="primary")
         with gr.Column():
-            gr.TabbedInterface([generate_tab, stream_tab], ['Generate', 'Stream'])
-    random_btn.click(fn=get_random_quote, inputs=[], outputs=[text])
-    gatsby_btn.click(fn=get_gatsby, inputs=[], outputs=[text])
-    frankenstein_btn.click(fn=get_frankenstein, inputs=[], outputs=[text])
-    generate_btn.click(fn=generate_first, inputs=[text, voice, speed, use_gpu], outputs=[out_audio, out_ps])
-    tokenize_btn.click(fn=tokenize_first, inputs=[text, voice], outputs=[out_ps])
-    stream_event = stream_btn.click(fn=generate_all, inputs=[text, voice, speed, use_gpu], outputs=[out_stream])
-    stop_btn.click(fn=None, cancels=stream_event)
-    predict_btn.click(fn=predict, inputs=[text, voice, speed], outputs=[out_audio])
+            audio_output = gr.Audio(label="Output Audio", streaming=True, autoplay=True)
+            
+    btn.click(
+        fn=generate_all,
+        inputs=[text_input, voice_select, speed_slider],
+        outputs=audio_output
+    )
 
-if __name__ == '__main__':
-    app.queue(api_open=API_OPEN).launch(server_name="0.0.0.0", server_port=40001, show_api=API_OPEN)
+if __name__ == "__main__":
+    demo.queue().launch()
