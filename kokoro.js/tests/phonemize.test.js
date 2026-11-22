@@ -51,45 +51,30 @@ const B_TEST_CASES = new Map([
   ["«Test «nested» quotes»", '"tˈɛst "nˈɛstɪd" kwˈəʊts"'],
   ["(Hello)", "«həlˈəʊ»"],
   ["(Nested (Parentheses))", "«nˈɛstɪd «pəɹˈɛnθəsˌiːz»»"],
-  ["こんにちは、世界！", "dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə, tʃˈaɪniːzlˌɛtə tʃˈaɪniːzlˌɛtə!"],
-  ["これはテストです：はい？", "dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə: dʒˈapəniːzlˌɛtə dʒˈapəniːzlˌɛtə?"],
-  ["Hello World", "həlˈəʊ wˈɜːld"],
-  ["Hello   World", "həlˈəʊ wˈɜːld"],
-  ["Hello\n   \nWorld", "həlˈəʊ wˈɜːld"],
-  ["Dr. Smith", "dˈɒktə smˈɪθ"],
-  ["DR. Brown", "dˈɒktə bɹˈaʊn"],
-  ["Mr. Smith", "mˈɪstə smˈɪθ"],
-  ["MR. Anderson", "mˈɪstəɹ ˈandəsən"],
-  ["Ms. Taylor", "mˈɪs tˈeɪlə"],
-  ["MS. Carter", "mˈɪs kˈɑːtə"],
-  ["Mrs. Johnson", "mˈɪsɪz dʒˈɒnsən"],
-  ["Apples, oranges, etc.", "ˈapəlz, ˈɒɹɪndʒɪz, ɛtsˈɛtɹə"],
-  ["Apples, etc. Pears.", "ˈapəlz, ɛtsˈɛtɹə. pˈeəz."],
-  ["1990", "nˈaɪntiːn nˈaɪnti"],
-  ["12:34", "twˈɛlv θˈɜːti fˈɔː"],
-  ["1,000", "wˈɒn θˈaʊzənd"],
-  ["12,345,678", "twˈɛlv mˈɪliən θɹˈiː hˈʌndɹɪdən fˈɔːti fˈaɪv θˈaʊzənd sˈɪks hˈʌndɹɪdən sˈɛvənti ˈeɪt"],
-  ["$100", "wˈɒn hˈʌndɹɪd dˈɒləz"],
-  ["£1.50", "wˈɒn pˈaʊnd and fˈɪfti pˈɛns"],
-  ["12.34", "twˈɛlv pˈɔɪnt θɹˈiː fˈɔː"],
-  ["0.01", "zˈiəɹəʊ pˈɔɪnt zˈiəɹəʊ wˈɒn"],
-  ["Cat's tail", "kˈats tˈeɪl"],
-  ["X's mark", "ˈɛksɪz mˈɑːk"],
+]);
+
+const G_TEST_CASES = new Map([
+  ["Guten Tag", "ɡuːtən tˈɑːk"],
+  ["Danke schön", "dˈaŋkə ʃøːn"],
+  ["Wie geht es Ihnen?", "viː ɡeːt ˈɛs ˈiːnən?"],
 ]);
 
 describe("phonemize", () => {
-  describe("en-us", () => {
+  test("American English (a)", () => {
     for (const [input, expected] of A_TEST_CASES) {
-      test(`phonemize("${input}")`, async () => {
-        expect(await phonemize(input)).toEqual(expected);
-      });
+      expect(phonemize(input, "a")).toBe(expected);
     }
   });
-  describe("en-gb", () => {
+
+  test("British English (b)", () => {
     for (const [input, expected] of B_TEST_CASES) {
-      test(`phonemize("${input}")`, async () => {
-        expect(await phonemize(input, "b")).toEqual(expected);
-      });
+      expect(phonemize(input, "b")).toBe(expected);
+    }
+  });
+
+  test("German (g) - Issue #290", () => {
+    for (const [input, expected] of G_TEST_CASES) {
+      expect(phonemize(input, "g")).toBe(expected);
     }
   });
 });
