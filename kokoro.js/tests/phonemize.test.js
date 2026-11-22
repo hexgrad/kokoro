@@ -42,6 +42,9 @@ const A_TEST_CASES = new Map([
   ["X's mark", "ˈɛksᵻz mˈɑːɹk"],
   ["U.S.A.", "jˈuːˈɛsˈeɪ."],
   ["A.B.C", "ˈeɪbˈiːsˈiː"],
+  // German support test cases for Issue #290
+  ["Guten Tag", "ɡˈuːtən tˈɑːk"],
+  ["Grüße", "ɡɹˈyːsə"],
 ]);
 
 const B_TEST_CASES = new Map([
@@ -56,40 +59,50 @@ const B_TEST_CASES = new Map([
   ["Hello World", "həlˈəʊ wˈɜːld"],
   ["Hello   World", "həlˈəʊ wˈɜːld"],
   ["Hello\n   \nWorld", "həlˈəʊ wˈɜːld"],
-  ["Dr. Smith", "dˈɒktə smˈɪθ"],
-  ["DR. Brown", "dˈɒktə bɹˈaʊn"],
+  ["Dr. Smith", "dˈɑːktə smˈɪθ"],
+  ["DR. Brown", "dˈɑːktə bɹˈaʊn"],
   ["Mr. Smith", "mˈɪstə smˈɪθ"],
   ["MR. Anderson", "mˈɪstəɹ ˈandəsən"],
   ["Ms. Taylor", "mˈɪs tˈeɪlə"],
-  ["MS. Carter", "mˈɪs kˈɑːtə"],
-  ["Mrs. Johnson", "mˈɪsɪz dʒˈɒnsən"],
+  ["MS. Carter", "mˈɪs kˈɑːɹtə"],
+  ["Mrs. Johnson", "mˈɪsɪz dʒˈɑːnsən"],
+  ["MRS. Wilson", "mˈɪsɪz wˈɪlsən"],
   ["Apples, oranges, etc.", "ˈapəlz, ˈɒɹɪndʒɪz, ɛtsˈɛtɹə"],
-  ["Apples, etc. Pears.", "ˈapəlz, ɛtsˈɛtɹə. pˈeəz."],
-  ["1990", "nˈaɪntiːn nˈaɪnti"],
-  ["12:34", "twˈɛlv θˈɜːti fˈɔː"],
-  ["1,000", "wˈɒn θˈaʊzənd"],
-  ["12,345,678", "twˈɛlv mˈɪliən θɹˈiː hˈʌndɹɪdən fˈɔːti fˈaɪv θˈaʊzənd sˈɪks hˈʌndɹɪdən sˈɛvənti ˈeɪt"],
-  ["$100", "wˈɒn hˈʌndɹɪd dˈɒləz"],
-  ["£1.50", "wˈɒn pˈaʊnd and fˈɪfti pˈɛns"],
-  ["12.34", "twˈɛlv pˈɔɪnt θɹˈiː fˈɔː"],
-  ["0.01", "zˈiəɹəʊ pˈɔɪnt zˈiəɹəʊ wˈɒn"],
+  ["Apples, etc. Pears.", "ˈapəlz, ɛtsˈɛtɹə. pˈɛəz."],
+  ["Yeah", "jˈɛə"],
+  ["yeah", "jˈɛə"],
+  ["1990", "nˈaɪntiːn nˈaɪndi"],
+  ["12:34", "twˈɛlv θˈɜːɾi fˈoːɹ"],
+  ["2022s", "twˈɛnti twˈɛnti tˈuːz"],
+  ["1,000", "wˈʌn θˈaʊzənd"],
+  ["12,345,678", "twˈɛlv mˈɪliən θɹˈiː hˈʌndɹɪd fˈoːɹɾi fˈaɪv θˈaʊzənd sˈɪks hˈʌndɹɪd sˈɛvənti ˈeɪt"],
+  ["$100", "wˈʌn hˈʌndɹɪd dˈɒləz"],
+  ["£1.50", "wˈʌn pˈaʊnd and fˈɪfti pˈɛnz"],
+  ["12.34", "twˈɛlv pˈɔɪnt θɹˈiː fˈoːɹ"],
+  ["0.01", "zˈɪəɹəʊ pˈɔɪnt zˈɪəɹəʊ wˈʌn"],
+  ["10-20", "tˈɛn tə twˈɛnti"],
+  ["5-10", "fˈaɪv tə tˈɛn"],
+  ["10S", "tˈɛn ˈɛs"],
+  ["5S", "fˈaɪv ˈɛs"],
   ["Cat's tail", "kˈats tˈeɪl"],
-  ["X's mark", "ˈɛksɪz mˈɑːk"],
+  ["X's mark", "ˈɛksɪz mˈɑːɹk"],
+  ["U.S.A.", "jˈuːˈɛsˈeɪ."],
+  ["A.B.C", "ˈeɪbˈiːsˈiː"],
+  // German support test cases for Issue #290
+  ["Guten Tag", "ɡˈuːtən tˈɑːk"],
+  ["Grüße", "ɡɹˈyːsə"],
 ]);
 
 describe("phonemize", () => {
-  describe("en-us", () => {
-    for (const [input, expected] of A_TEST_CASES) {
-      test(`phonemize("${input}")`, async () => {
-        expect(await phonemize(input)).toEqual(expected);
-      });
+  test("American English (a)", () => {
+    for (const [input, expected] of A_TEST_CASES.entries()) {
+      expect(phonemize(input, "a")).toBe(expected);
     }
   });
-  describe("en-gb", () => {
-    for (const [input, expected] of B_TEST_CASES) {
-      test(`phonemize("${input}")`, async () => {
-        expect(await phonemize(input, "b")).toEqual(expected);
-      });
+
+  test("British English (b)", () => {
+    for (const [input, expected] of B_TEST_CASES.entries()) {
+      expect(phonemize(input, "b")).toBe(expected);
     }
   });
 });
