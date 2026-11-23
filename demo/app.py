@@ -7,9 +7,10 @@ import torch
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 models = {gpu: KModel().to('cuda' if gpu else 'cpu').eval() for gpu in [False] + ([True] if CUDA_AVAILABLE else [])}
-pipelines = {lang_code: KPipeline(lang_code=lang_code, model=False) for lang_code in 'ab'}
+pipelines = {lang_code: KPipeline(lang_code=lang_code, model=False) for lang_code in 'abde'}  # Added 'd' for German
 pipelines['a'].g2p.lexicon.golds['kokoro'] = 'kˈOkəɹO'
 pipelines['b'].g2p.lexicon.golds['kokoro'] = 'kˈQkəɹQ'
+pipelines['d'].g2p.lexicon.golds['kokoro'] = 'kˈoːkɔʁo'  # Example German pronunciation
 
 @spaces.GPU(duration=30)
 def forward_gpu(ps, ref_s, speed):
@@ -113,6 +114,7 @@ CHOICES = {
 '🇬🇧 🚹 Fable': 'bm_fable',
 '🇬🇧 🚹 Lewis': 'bm_lewis',
 '🇬🇧 🚹 Daniel': 'bm_daniel',
+'🇩🇪 🚺 German Voice': 'de_voice',  # Added German voice option
 }
 for v in CHOICES.values():
     pipelines[v[0]].load_voice(v)
