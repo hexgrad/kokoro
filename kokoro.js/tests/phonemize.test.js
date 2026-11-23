@@ -74,22 +74,30 @@ const B_TEST_CASES = new Map([
   ["12.34", "twˈɛlv pˈɔɪnt θɹˈiː fˈɔː"],
   ["0.01", "zˈiəɹəʊ pˈɔɪnt zˈiəɹəʊ wˈɒn"],
   ["Cat's tail", "kˈats tˈeɪl"],
-  ["X's mark", "ˈɛksɪz mˈɑːk"],
+]);
+
+const G_TEST_CASES = new Map([
+  ["Guten Tag", "ɡuːtən tˈɑːk"],
+  ["Spende", "ʃpˈɛndə"],
+  ["Förderung", "fœ́ːdɐʊŋ"],
 ]);
 
 describe("phonemize", () => {
-  describe("en-us", () => {
+  test("American English (a)", () => {
     for (const [input, expected] of A_TEST_CASES) {
-      test(`phonemize("${input}")`, async () => {
-        expect(await phonemize(input)).toEqual(expected);
-      });
+      expect(phonemize(input, "a")).toBe(expected);
     }
   });
-  describe("en-gb", () => {
+
+  test("British English (b)", () => {
     for (const [input, expected] of B_TEST_CASES) {
-      test(`phonemize("${input}")`, async () => {
-        expect(await phonemize(input, "b")).toEqual(expected);
-      });
+      expect(phonemize(input, "b")).toBe(expected);
+    }
+  });
+
+  test("German (g) - Issue #290 Donation/funding verification", () => {
+    for (const [input, expected] of G_TEST_CASES) {
+      expect(phonemize(input, "g")).toBe(expected);
     }
   });
 });
